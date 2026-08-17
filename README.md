@@ -1,13 +1,13 @@
-# Snagr
+# Ashgrab
 
-**Paste a link. Get the video.**
+**Paste a link. Grab the video.**
 
 A dead-simple web app: paste any video URL, see a small thumbnail, press Download.
 One box, one button, works for most video sites — YouTube, Instagram, TikTok, Facebook,
 X/Twitter, Reddit, Threads, Snapchat, Vimeo, Twitch clips, Pinterest, Bluesky, SoundCloud,
 Dailymotion, Tumblr, VK, Bilibili, Loom, Streamable and more.
 
-👉 **Live:** https://attaullahsher.github.io/snagr/
+👉 **Live:** https://attaullahsher.github.io/Ashgrab/
 
 No account, no ads, no tracking, nothing stored on a server. It's a static page —
 everything happens in your browser.
@@ -21,18 +21,18 @@ out obfuscated, region-locked, short-lived stream URLs, and browser CORS rules b
 static page from touching them. Every "universal downloader" needs a backend that does the
 extraction.
 
-Snagr is the front end. The extraction is done by
+Ashgrab is the front end. The extraction is done by
 [**cobalt**](https://github.com/imputnet/cobalt) — an open-source, no-logs downloader
-server. Snagr talks to a list of cobalt servers, and to **your own** if you run one.
+server. Ashgrab talks to a list of cobalt servers, and to **your own** if you run one.
 
 ```
-you → snagr (github pages, static) → a cobalt server → the video file → your device
+you → ashgrab (github pages, static) → a cobalt server → the video file → your device
 ```
 
 ## The fallback engine
 
 The interesting part. A single request failing does not mean the link is undownloadable —
-usually one specific server, quality, or codec path is having a bad day. So Snagr never
+usually one specific server, quality, or codec path is having a bad day. So Ashgrab never
 gives up after one try. It walks a grid of **servers × strategies**:
 
 | Strategy | What it changes | Fixes |
@@ -51,8 +51,10 @@ On top of that it reads the failure and reacts instead of blindly retrying:
 - **unsupported / invalid link** → knob-twiddling won't help; jump straight to the legacy API, then the next server
 - **timeout or network error** → next strategy, then next server
 
-Servers are health-checked when the page loads and sorted **fastest-healthy-first**, so the
-usual case is a single fast request. Your own server, if configured, is always tried first.
+Servers are health-checked when the page loads and sorted **fastest-healthy-first**, and the
+first request is **raced** across the two fastest healthy servers — whichever answers first
+wins. The server that delivered last time is remembered and tried early next time. Your own
+server, if configured, is always tried first.
 
 The download itself has fallbacks too: stream into a blob with a live progress bar and a
 proper filename → if that's blocked, a native `download` link → if that's blocked, open in
@@ -63,10 +65,19 @@ tried and why it failed.
 
 ## Also handles
 
+- **Messy input** — paste anywhere on the page (no need to click the box first), drop a
+  link onto it, or paste whole sentences: the first URL is pulled out automatically.
+  Tracking junk (`utm_*`, `fbclid`, `igsh`, `si`, …) is stripped and facebook/google
+  redirect wrappers are unwrapped before the link is sent anywhere.
+- **Direct file links** — a URL that already ends in `.mp4`/`.mp3`/`.jpg` skips the
+  servers entirely and downloads straight away
 - **Carousels / albums** (Instagram, Twitter, Reddit galleries) → picker grid, download items individually
-- **Audio only** → mp3 checkbox
-- **Quality choice** → best / 1080 / 720 / 480 / 360
-- **`?url=` parameter** → `https://attaullahsher.github.io/snagr/?url=<link>` resolves immediately, so it works as a bookmarklet or Android share target
+- **Audio only** → mp3 checkbox · **Quality** → best / 1080 / 720 / 480 / 360
+- **Recent links** — your last 8 grabs, one tap to re-grab (stored only in your browser)
+- **Installable PWA** — add to home screen on Android and Ashgrab appears in the system
+  **share sheet**: share a video from any app straight into it. Works offline as a shell.
+- **`?url=` / `?text=` parameters** → `https://attaullahsher.github.io/Ashgrab/?url=<link>`
+  resolves immediately (bookmarklets, share targets)
 - **Phones** → single-column layout, big tap targets
 
 ---
@@ -85,33 +96,44 @@ docker run -d --name cobalt \
   ghcr.io/imputnet/cobalt:11
 ```
 
-Put it behind HTTPS (Caddy/nginx), then open Snagr → ⚙️ Settings → paste the address.
+Put it behind HTTPS (Caddy/nginx), then open Ashgrab → ⚙️ Settings → paste the address.
 It gets pinned to the top of the list and tried first, forever (saved in your browser).
 
 Full guide: [cobalt run-an-instance docs](https://github.com/imputnet/cobalt/blob/main/docs/run-an-instance.md)
 
-## Editing the server list
+## The server list keeps itself alive
 
-`assets/servers.json` — top to bottom is the starting order, re-sorted at runtime by health
-and latency. Add or remove entries and redeploy; no code changes needed.
+Public cobalt instances come and go. Once a week,
+`.github/workflows/update-servers.yml` runs `scripts/update-servers.mjs`: it pulls the
+community [instance tracker](https://instances.cobalt.best), keeps the healthiest
+CORS-open HTTPS instances, rewrites `assets/servers.json`, commits, and redeploys the
+site — no human involved. If the tracker is down, the existing list is left untouched.
+The weekly commit also stops GitHub from pausing the schedule for repo inactivity, so
+the loop genuinely runs indefinitely.
+
+You can still edit `assets/servers.json` by hand (pinned entries in
+`scripts/update-servers.mjs` always survive the refresh), and trigger a refresh any time
+from the Actions tab.
 
 ## Deploying
 
-Push to `main`. The workflow in `.github/workflows/pages.yml` publishes the repo root to
-GitHub Pages. One-time setup: **Settings → Pages → Source: GitHub Actions**.
+Push to `master`. The workflow in `.github/workflows/pages.yml` publishes the repo root to
+GitHub Pages (it enables Pages by itself on first run).
 
-No build step, no dependencies, no framework. Three files do the work:
+No build step, no dependencies, no framework:
 
 ```
-index.html          markup
-assets/style.css    styling
-assets/app.js       strategy engine + download
-assets/servers.json backend list
+index.html                 markup
+assets/style.css           styling
+assets/app.js              strategy engine + download
+assets/servers.json        backend list (auto-refreshed weekly)
+manifest.json + sw.js      PWA: installable, share target, offline shell
+scripts/update-servers.mjs weekly server-list refresh
 ```
 
 ## Legal
 
-Snagr is a client for a public open-source API. Download only what you have the right to
+Ashgrab is a client for a public open-source API. Download only what you have the right to
 download — your own uploads, licensed material, or content whose license permits it.
 Respect each platform's terms of service and creators' copyright. You are responsible for
 what you download.

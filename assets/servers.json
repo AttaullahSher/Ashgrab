@@ -1,5 +1,6 @@
 {
-  "note": "Cobalt-compatible backends, tried top to bottom. Ones that answer fastest get promoted automatically. Add your own in Settings, or edit this file and redeploy.",
+  "note": "Cobalt-compatible backends, tried top to bottom; the app re-sorts by live health. Refreshed weekly from instances.cobalt.best by .github/workflows/update-servers.yml. Add your own in the app settings, or edit here and redeploy.",
+  "updated": "2026-08-17",
   "servers": [
     { "url": "https://co.otomir23.me/",              "label": "otomir23" },
     { "url": "https://cobalt-api.kwiatekmiki.com/",  "label": "kwiatekmiki" },

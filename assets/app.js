@@ -1,4 +1,4 @@
-/* Snagr — paste a link, get the video.
+/* Ashgrab — paste a link, grab the video.
    Runs entirely in the browser. Talks to cobalt-compatible backends and
    escalates through fallback strategies until something works. */
 
@@ -6,12 +6,15 @@
 
 /* ---------------------------------------------------------------- config */
 
-const LS = 'snagr.settings.v1';
-const FALLBACK_SERVERS = [{ url: 'https://co.otomir23.me/', label: 'otomir23' }];
+const LS = 'ashgrab.settings.v1';
+const FALLBACK_SERVERS = [
+  { url: 'https://co.otomir23.me/', label: 'otomir23' },
+  { url: 'https://cobalt-api.kwiatekmiki.com/', label: 'kwiatekmiki' }
+];
 
 const settings = Object.assign(
-  { custom: '', key: '', alwaysProxy: false },
-  JSON.parse(localStorage.getItem(LS) || '{}')
+  { custom: '', key: '', alwaysProxy: false, lastGood: '', history: [] },
+  JSON.parse(localStorage.getItem(LS) || localStorage.getItem('snagr.settings.v1') || '{}')
 );
 const saveSettings = () => localStorage.setItem(LS, JSON.stringify(settings));
 
@@ -29,7 +32,7 @@ const el = {
   fileinfo: $('fileinfo'), quality: $('quality'), audioOnly: $('audioOnly'),
   dl: $('dlBtn'), progress: $('progress'), progressFill: $('progressFill'),
   progressTxt: $('progressTxt'),
-  picker: $('picker'), pickerGrid: $('pickerGrid'),
+  picker: $('picker'), pickerGrid: $('pickerGrid'), recent: $('recent'),
   statusBox: $('statusBox'), statusMsg: $('statusMsg'), spinner: $('spinner'),
   logToggle: $('logToggle'), log: $('log'), error: $('error'),
   sheet: $('sheet'), settingsBtn: $('settingsBtn'), closeSheet: $('closeSheet'),
@@ -111,6 +114,62 @@ const PLATFORMS = [
 function platformOf(u) {
   for (const [re, name] of PLATFORMS) if (re.test(u)) return name;
   try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return 'link'; }
+}
+
+/* ------------------------------------------------------- url intelligence */
+
+/* Pull the first URL out of arbitrary text — share sheets and messenger
+   copies wrap links in captions, emoji, whatever. */
+function extractUrl(text) {
+  const m = String(text || '').match(/https?:\/\/[^\s<>"'\])]+/);
+  return m ? m[0].replace(/[.,;:!?]+$/, '') : null;
+}
+
+const JUNK_PREFIX = ['utm_', 'mc_', 'embeds_'];
+const JUNK_EXACT = ['fbclid', 'gclid', 'dclid', 'igsh', 'igshid', 'si', 'feature',
+  'mibextid', 'share_id', 's_kwcid', 'ref', 'ref_src', 'ref_url', 'rdt', 'cxt'];
+
+/* Strip tracking junk and unwrap redirect shells so the backends see the
+   cleanest possible link. */
+function cleanUrl(raw, depth = 0) {
+  let u;
+  try { u = new URL(raw); } catch { return raw; }
+  if (depth < 3) {
+    // facebook/instagram interstitials and google result wrappers
+    if (/^(l|lm)\.(facebook|instagram)\.com$/.test(u.hostname) && u.searchParams.get('u')) {
+      return cleanUrl(u.searchParams.get('u'), depth + 1);
+    }
+    if (/(^|\.)google\.[a-z.]{2,6}$/.test(u.hostname) && u.pathname === '/url') {
+      const inner = u.searchParams.get('q') || u.searchParams.get('url');
+      if (inner) return cleanUrl(inner, depth + 1);
+    }
+  }
+  for (const k of [...u.searchParams.keys()]) {
+    const lk = k.toLowerCase();
+    if (JUNK_PREFIX.some((p) => lk.startsWith(p)) || JUNK_EXACT.includes(lk)) {
+      u.searchParams.delete(k);
+    }
+  }
+  // on x/twitter, s= and t= are share-tracking, not content
+  if (/(^|\.)(twitter|x)\.com$/.test(u.hostname)) {
+    u.searchParams.delete('s');
+    u.searchParams.delete('t');
+  }
+  return u.toString().replace(/\?$/, '');
+}
+
+/* A link that already points at a media file needs no extraction at all. */
+const AUDIO_EXT = ['mp3', 'm4a', 'wav', 'ogg', 'opus', 'aac', 'flac'];
+const VIDEO_EXT = ['mp4', 'webm', 'mov', 'm4v', 'mkv', 'avi', 'gif', 'jpg', 'jpeg', 'png', 'webp'];
+function directFile(url) {
+  try {
+    const p = new URL(url).pathname;
+    const m = p.match(/\.([a-z0-9]{2,4})$/i);
+    if (!m) return null;
+    const ext = m[1].toLowerCase();
+    if (!AUDIO_EXT.includes(ext) && !VIDEO_EXT.includes(ext)) return null;
+    return { url, filename: decodeURIComponent(p.split('/').pop()), audioOnly: AUDIO_EXT.includes(ext) };
+  } catch { return null; }
 }
 
 function youtubeId(u) {
@@ -317,8 +376,42 @@ async function resolve(url, opts) {
   if (!servers.length) servers = FALLBACK_SERVERS.map((s) => ({ ...s, state: 'unknown', ms: null }));
   const usable = servers.filter((s) => s.state !== 'down');
   const pool = usable.length ? usable : servers;
+  // your own server first, then whichever public one delivered last time
+  pool.sort((a, b) => {
+    if (!!a.custom !== !!b.custom) return a.custom ? -1 : 1;
+    const ag = a.url === settings.lastGood, bg = b.url === settings.lastGood;
+    if (ag !== bg) return ag ? -1 : 1;
+    return 0;
+  });
   const plan = strategies(url, opts);
   const skipped = [];
+  const tried = new Set();
+  const mark = (s, p) => tried.add(s.url + '|' + p.name);
+  const won = (s, res, rescue) => {
+    res.audioOnly = !!opts.audioOnly || !!rescue;
+    settings.lastGood = s.url; saveSettings();
+    return res;
+  };
+
+  // fast path: race the primary strategy across the two fastest healthy servers
+  const racers = pool.filter((s) => s.state === 'up').slice(0, 2);
+  if (racers.length === 2) {
+    const strat = plan[0];
+    status(`Racing ${racers[0].label} vs ${racers[1].label}…`);
+    log('try', `racing ${racers[0].label} vs ${racers[1].label} · ${strat.name}`);
+    try {
+      const win = await Promise.any(racers.map((s) =>
+        askServer(s, strat)
+          .then((r) => ({ r, s }))
+          .catch((e) => { log('fail', `${s.label}: ${e.code || e.message}`); throw e; })
+      ));
+      log('ok', `${win.s.label} won the race`);
+      return won(win.s, win.r);
+    } catch {
+      racers.forEach((s) => mark(s, strat));
+      log('try', 'both racers failed — walking the full grid');
+    }
+  }
 
   for (const server of pool) {
     if (server.state === 'key' && !settings.key) {
@@ -329,6 +422,7 @@ async function resolve(url, opts) {
     for (const strat of plan) {
       // don't silently hand back audio unless every real option is gone
       if (strat.rescue && server !== pool[pool.length - 1]) continue;
+      if (tried.has(server.url + '|' + strat.name)) continue;
 
       status(`Trying ${server.label} · ${strat.name}…`);
       log('try', `${server.label} · ${strat.name}`);
@@ -336,8 +430,7 @@ async function resolve(url, opts) {
         const res = await askServer(server, strat);
         log('ok', `${server.label} answered · ${strat.name}`);
         if (strat.rescue) log('try', 'video was unavailable everywhere — this is the audio track');
-        res.audioOnly = !!opts.audioOnly || !!strat.rescue;
-        return res;
+        return won(server, res, strat.rescue);
       } catch (e) {
         const msg = e.name === 'AbortError' ? 'timed out' : (e.code || e.message);
         log('fail', `${server.label} · ${strat.name}: ${msg}`);
@@ -354,8 +447,7 @@ async function resolve(url, opts) {
             try {
               const res = await askServer(server, legacy);
               log('ok', `${server.label} answered · ${legacy.name}`);
-              res.audioOnly = !!opts.audioOnly;
-              return res;
+              return won(server, res);
             } catch (e2) {
               log('fail', `${server.label} · ${legacy.name}: ${e2.code || e2.message}`);
             }
@@ -425,7 +517,7 @@ async function download(fileUrl, filename, isAudio) {
 }
 
 const mb = (b) => (b / 1048576).toFixed(1) + ' MB';
-const fallbackName = (isAudio) => 'snagr-' + Date.now() + (isAudio ? '.mp3' : '.mp4');
+const fallbackName = (isAudio) => 'ashgrab-' + Date.now() + (isAudio ? '.mp3' : '.mp4');
 
 function saveBlob(blob, name) {
   const u = URL.createObjectURL(blob);
@@ -439,7 +531,9 @@ function saveBlob(blob, name) {
 
 /* ------------------------------------------------------------ main flow */
 
-async function run(url) {
+async function run(rawUrl) {
+  const url = cleanUrl(extractUrl(rawUrl) || rawUrl);
+  el.url.value = url;
   clearAll();
   el.go.disabled = true;
   el.card.hidden = false;
@@ -448,6 +542,22 @@ async function run(url) {
   el.fileinfo.textContent = '';
   el.thumb.textContent = platformOf(url).slice(0, 1).toUpperCase();
   status('Working…');
+
+  // link already points at a file — no extraction needed
+  const direct = directFile(url);
+  if (direct) {
+    current = direct;
+    log('ok', 'direct media link — no server needed');
+    setThumbMedia(url, direct.audioOnly);
+    el.title.textContent = direct.filename;
+    el.fileinfo.textContent = direct.audioOnly ? 'audio file' : 'media file';
+    el.dl.disabled = false;
+    el.dl.textContent = direct.audioOnly ? 'Download audio' : 'Download';
+    status('Ready', 'done');
+    el.go.disabled = false;
+    remember(url, direct.filename);
+    return;
+  }
 
   loadPreview(url); // fire and forget
 
@@ -461,6 +571,7 @@ async function run(url) {
       status('Found ' + res.items.length + ' items', 'done');
       renderPicker(res);
       el.card.hidden = true;
+      remember(url, 'album · ' + platformOf(url));
       return;
     }
 
@@ -475,6 +586,7 @@ async function run(url) {
     el.dl.disabled = false;
     el.dl.textContent = res.audioOnly ? 'Download audio' : 'Download video';
     status('Ready', 'done');
+    remember(url, el.title.textContent);
   } catch (e) {
     status("Couldn't get that one", 'fail');
     el.card.hidden = true;
@@ -484,13 +596,56 @@ async function run(url) {
       '<b>Every server and every fallback failed for this link.</b>' +
       '<ul>' +
       '<li>Check the link opens in a normal browser tab — private, deleted and age-gated posts can\'t be fetched.</li>' +
-      '<li>Public servers get rate-limited. Wait a minute and press Get again.</li>' +
+      '<li>Public servers get rate-limited. Wait a minute and try again.</li>' +
       '<li>For links that always work, run your own server (Settings → Run your own) and paste its address.</li>' +
-      '</ul>'
+      '</ul>' +
+      '<p><button id="retryBtn" class="ghost" type="button">Try again</button></p>'
     );
+    const rb = $('retryBtn');
+    if (rb) rb.onclick = () => {
+      servers.forEach((s) => { if (s.state === 'down') s.state = 'unknown'; });
+      probeAll();
+      run(url);
+    };
   } finally {
     el.go.disabled = false;
   }
+}
+
+/* -------------------------------------------------------------- history */
+
+function remember(u, title) {
+  const h = (settings.history || []).filter((i) => i.u !== u);
+  h.unshift({ u, title: (title || '').slice(0, 60) });
+  settings.history = h.slice(0, 8);
+  saveSettings();
+  renderHistory();
+}
+
+function renderHistory() {
+  const h = settings.history || [];
+  el.recent.hidden = !h.length;
+  el.recent.innerHTML = '';
+  if (!h.length) return;
+  const lbl = document.createElement('span');
+  lbl.className = 'recent-label';
+  lbl.textContent = 'Recent:';
+  el.recent.appendChild(lbl);
+  for (const it of h) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.textContent = it.title || hostOf(it.u);
+    b.title = it.u;
+    b.onclick = () => run(it.u);
+    el.recent.appendChild(b);
+  }
+  const x = document.createElement('button');
+  x.type = 'button';
+  x.className = 'chip clear';
+  x.textContent = 'clear';
+  x.onclick = () => { settings.history = []; saveSettings(); renderHistory(); };
+  el.recent.appendChild(x);
 }
 
 function renderPicker(res) {
@@ -512,7 +667,7 @@ function renderPicker(res) {
     const s = document.createElement('span');
     s.textContent = (item.type || 'file') + ' ' + (i + 1);
     b.appendChild(s);
-    b.onclick = () => download(item.url, `snagr-${i + 1}.${item.type === 'photo' ? 'jpg' : 'mp4'}`, false);
+    b.onclick = () => download(item.url, `ashgrab-${i + 1}.${item.type === 'photo' ? 'jpg' : 'mp4'}`, false);
     el.pickerGrid.appendChild(b);
   });
   if (res.audio) {
@@ -520,7 +675,7 @@ function renderPicker(res) {
     b.className = 'pick';
     b.type = 'button';
     b.innerHTML = '<span>♪ audio track</span>';
-    b.onclick = () => download(res.audio, 'snagr-audio.mp3', true);
+    b.onclick = () => download(res.audio, 'ashgrab-audio.mp3', true);
     el.pickerGrid.appendChild(b);
   }
 }
@@ -537,11 +692,40 @@ el.form.addEventListener('submit', (e) => {
 el.paste.addEventListener('click', async () => {
   try {
     const t = (await navigator.clipboard.readText()).trim();
-    if (t) { el.url.value = t; run(t); }
+    if (t) run(t);
   } catch {
     el.url.focus();
     el.paste.textContent = 'Ctrl+V';
     setTimeout(() => (el.paste.textContent = 'Paste'), 2000);
+  }
+});
+
+/* paste anywhere on the page — no need to hit the box first */
+document.addEventListener('paste', (e) => {
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) {
+    if (t === el.url) setTimeout(() => { if (extractUrl(el.url.value)) run(el.url.value); }, 0);
+    return;
+  }
+  const u = extractUrl(e.clipboardData && e.clipboardData.getData('text'));
+  if (!u) return;
+  e.preventDefault();
+  run(u);
+});
+
+/* drop a link onto the page */
+['dragover', 'drop'].forEach((ev) => document.addEventListener(ev, (e) => e.preventDefault()));
+document.addEventListener('drop', (e) => {
+  const dt = e.dataTransfer;
+  const u = extractUrl((dt && (dt.getData('text/uri-list') || dt.getData('text'))) || '');
+  if (u) run(u);
+});
+
+/* "/" focuses the box, like every search page */
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) {
+    e.preventDefault();
+    el.url.focus();
   }
 });
 
@@ -610,7 +794,13 @@ el.reset.addEventListener('click', () => {
   loadServers();
 });
 
-/* start: accept ?url= so the page can be used as a share target / bookmarklet */
+/* start: accept ?url= / ?text= so the page works as a share target and bookmarklet */
 loadServers();
-const shared = new URLSearchParams(location.search).get('url');
-if (shared) { el.url.value = shared; run(shared); }
+renderHistory();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+const qp = new URLSearchParams(location.search);
+const shared = qp.get('url') || extractUrl(qp.get('text')) || extractUrl(qp.get('title'));
+if (shared) run(shared);
+
+/* hooks for the test suite */
+window.__ashgrab = { cleanUrl, extractUrl, directFile };
