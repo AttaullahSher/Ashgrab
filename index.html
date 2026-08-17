@@ -206,15 +206,17 @@
          is the only way to skip the build below. -->
     <section class="info-section" id="scInstantWrap" hidden>
       <h3>iPhone — one tap</h3>
-      <p>Tap below, then <b>Add Shortcut</b>. That's it.</p>
+      <p>Tap below — Shortcuts opens with Ashgrab ready. Tap <b>Add Shortcut</b> and you're done.</p>
       <div class="btn-row">
-        <a id="scInstant" class="dl" href="#" target="_blank" rel="noopener">
+        <a id="scInstant" class="dl" href="#" rel="noopener">
           <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="11" height="11" rx="3.4"/><rect x="10" y="10" width="11" height="11" rx="3.4"/>
           </svg>
           Add the Ashgrab shortcut
         </a>
       </div>
+      <a id="scInstantAlt" class="linkish" href="#" hidden>Nothing opened? Download the shortcut file instead —
+        then tap it in your Downloads.</a>
     </section>
 
     <section class="info-section">
@@ -323,7 +325,10 @@
 
     <section class="info-section">
       <h3>Android — even easier</h3>
-      <p>Open Ashgrab in Chrome → menu → <b>Add to Home screen</b>. It then shows up in your
+      <div class="btn-row" id="installWrap" hidden>
+        <button id="installBtn" class="dl" type="button">Install Ashgrab</button>
+      </div>
+      <p>Or: Chrome menu → <b>Add to Home screen</b>. Either way it shows up in your
          Share menu automatically — no setup needed.</p>
     </section>
   </div>
