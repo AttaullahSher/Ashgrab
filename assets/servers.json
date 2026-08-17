@@ -1,0 +1,11 @@
+{
+  "note": "Cobalt-compatible backends, tried top to bottom. Ones that answer fastest get promoted automatically. Add your own in Settings, or edit this file and redeploy.",
+  "servers": [
+    { "url": "https://co.otomir23.me/",              "label": "otomir23" },
+    { "url": "https://cobalt-api.kwiatekmiki.com/",  "label": "kwiatekmiki" },
+    { "url": "https://cobalt-backend.canine.tools/", "label": "canine" },
+    { "url": "https://capi.oak.li/",                 "label": "oak" },
+    { "url": "https://cobalt.255x.ru/",              "label": "255x" },
+    { "url": "https://api.cobalt.tools/",            "label": "official (needs key)" }
+  ]
+}

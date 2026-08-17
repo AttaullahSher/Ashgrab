@@ -1,210 +1,138 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AKM Music - Connect With Us</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: 'Arial', sans-serif;
-    }
-
-    body {
-      background-color: #f5f5e6; /* Beige background */
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 20px;
-    }
-
-    .container {
-      max-width: 400px;
-      width: 100%;
-      background-color: #ffffff;
-      border-radius: 15px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-      overflow: hidden;
-    }
-
-    .header {
-      background-color: #1e3a8a; /* Dark blue */
-      color: #f5f5e6;
-      text-align: center;
-      padding: 20px;
-    }
-
-    .header h1 {
-      font-size: 1.8rem;
-      margin-bottom: 10px;
-    }
-
-    .review-card {
-      background-color: #ffffff;
-      margin: 20px;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      text-align: center;
-    }
-
-    .review-card a {
-      text-decoration: none;
-      color: #1e3a8a;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      transition: transform 0.3s ease;
-    }
-
-    .review-card a:hover {
-      transform: scale(1.05);
-    }
-
-    .review-card img {
-      width: 60px;
-      height: 60px;
-      margin-bottom: 10px;
-    }
-
-    .review-card p {
-      font-size: 1.2rem;
-      font-weight: bold;
-      margin-bottom: 8px;
-    }
-
-    .review-card .stars {
-      color: #ffd700; /* Gold for stars */
-      font-size: 1.2rem;
-      display: flex;
-      justify-content: center;
-      gap: 5px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-      padding: 20px;
-      background-color: #e6e6d3; /* Light beige */
-    }
-
-    .grid a {
-      background-color: #1e3a8a;
-      color: #f5f5e6;
-      text-align: center;
-      padding: 20px;
-      border-radius: 10px;
-      text-decoration: none;
-      font-size: 0.9rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      transition: background-color 0.3s ease, transform 0.3s ease;
-    }
-
-    .grid a:hover {
-      background-color: #2563eb; /* Lighter blue on hover */
-      transform: scale(1.05);
-    }
-
-    .grid i {
-      font-size: 2rem;
-      margin-bottom: 8px;
-    }
-
-    @media (max-width: 400px) {
-      .container {
-        margin: 10px;
-      }
-
-      .header h1 {
-        font-size: 1.5rem;
-      }
-
-      .review-card {
-        margin: 15px;
-        padding: 15px;
-      }
-
-      .review-card img {
-        width: 50px;
-        height: 50px;
-      }
-
-      .review-card p {
-        font-size: 1rem;
-      }
-
-      .review-card .stars {
-        font-size: 1rem;
-      }
-
-      .grid a {
-        font-size: 0.8rem;
-        padding: 15px;
-      }
-
-      .grid i {
-        font-size: 1.8rem;
-      }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<title>Snagr — paste a link, get the video</title>
+<meta name="description" content="Paste any video link. Snagr finds it, previews it, and downloads it. YouTube, Instagram, TikTok, Facebook, X, Reddit and more.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>AKM Music</h1>
-      <p>Connect With Us!</p>
-    </div>
-    <div class="review-card">
-      <a href="https://g.page/r/Ced_hTFllkaOEAI/review" target="_blank">
-        <img src="Logo.ico" alt="AKM Music Logo">
-        <p>Leave a Review</p>
-        <div class="stars">
-          <i class="fas fa-star"></i>
-          <i class="fas fa-star"></i>
-          <i class="fas fa-star"></i>
-          <i class="fas fa-star"></i>
-          <i class="fas fa-star"></i>
-        </div>
-      </a>
-    </div>
-    <div class="grid">
-      <a href="https://www.facebook.com/akmmusiccenter" target="_blank">
-        <i class="fab fa-facebook-f"></i>
-        Facebook
-      </a>
-      <a href="https://www.instagram.com/akm.music" target="_blank">
-        <i class="fab fa-instagram"></i>
-        Instagram
-      </a>
-      <a href="https://www.akm-music.com" target="_blank">
-        <i class="fas
 
- fa-globe"></i>
-        Website
-      </a>
-      <a href="https://wa.me/97126219929" target="_blank">
-        <i class="fab fa-whatsapp"></i>
-        WhatsApp
-      </a>
+<main class="wrap">
+
+  <header class="head">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4.2-4.2M12 14 7.8 9.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16.5V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2.5" stroke-linecap="round"/></svg>
+      <h1>Snagr</h1>
     </div>
+    <button id="settingsBtn" class="icon-btn" title="Settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-3-1.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9h-.2a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.2 6.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2v-.2a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 3 1.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </header>
+
+  <p class="tag">Paste a link. Get the video.</p>
+
+  <form id="form" class="bar" autocomplete="off">
+    <input id="url" type="url" inputmode="url" placeholder="Paste video link…" spellcheck="false" required>
+    <button type="button" id="pasteBtn" class="ghost" title="Paste from clipboard">Paste</button>
+    <button type="submit" id="goBtn" class="go">Get</button>
+  </form>
+
+  <p class="hint">YouTube · Instagram · TikTok · Facebook · X · Reddit · Threads · Snapchat · Vimeo · Twitch · Pinterest · Bluesky · SoundCloud · and more</p>
+
+  <!-- result card -->
+  <section id="card" class="card" hidden>
+    <div class="thumb" id="thumb"></div>
+    <div class="meta">
+      <p class="title" id="title">Loading…</p>
+      <p class="sub"><span class="badge" id="source">link</span> <span id="fileinfo"></span></p>
+      <div class="row">
+        <select id="quality" aria-label="Quality">
+          <option value="max">Best quality</option>
+          <option value="1080" selected>1080p</option>
+          <option value="720">720p</option>
+          <option value="480">480p</option>
+          <option value="360">360p</option>
+        </select>
+        <label class="chk"><input type="checkbox" id="audioOnly"> Audio only (mp3)</label>
+      </div>
+      <button id="dlBtn" class="dl" disabled>Download</button>
+      <div class="progress" id="progress" hidden><div class="bar-fill" id="progressFill"></div><span id="progressTxt">0%</span></div>
+    </div>
+  </section>
+
+  <!-- picker (albums / carousels) -->
+  <section id="picker" class="picker" hidden>
+    <p class="picker-head">This post has multiple items — pick what you want:</p>
+    <div class="picker-grid" id="pickerGrid"></div>
+  </section>
+
+  <!-- status -->
+  <section id="statusBox" class="status" hidden>
+    <button type="button" id="logToggle" class="log-toggle" aria-expanded="false">
+      <span class="spinner" id="spinner"></span>
+      <span id="statusMsg">Working…</span>
+      <span class="chev">▾</span>
+    </button>
+    <ol id="log" class="log" hidden></ol>
+  </section>
+
+  <div id="error" class="error" hidden></div>
+
+  <footer class="foot">
+    <p>No account, no tracking, nothing stored. Snagr runs in your browser and asks a
+       <a href="https://github.com/imputnet/cobalt" target="_blank" rel="noopener">cobalt</a> server to fetch the file.
+       If a link fails, it automatically retries with different settings and different servers.</p>
+    <p>Public servers get rate-limited and go down.
+       <a href="#" id="selfhostLink">Run your own in 2 minutes</a> for links that always work —
+       then paste its address in <a href="#" id="settingsLink">settings</a>.</p>
+    <p class="fine">Download only what you have the right to download. Respect each platform's terms and the creator's copyright.</p>
+    <p class="fine">Built by Asher · <a href="https://github.com/AttaullahSher/NFCscan" target="_blank" rel="noopener">source</a></p>
+  </footer>
+</main>
+
+<!-- settings drawer -->
+<div id="sheet" class="sheet" hidden>
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <h2>Settings</h2>
+      <button id="closeSheet" class="icon-btn" aria-label="Close">✕</button>
+    </div>
+
+    <label class="field">
+      <span>Your own server (recommended)</span>
+      <input id="customInstance" type="url" placeholder="https://cobalt.yourdomain.com/" spellcheck="false">
+      <small>Tried first, before the public ones.</small>
+    </label>
+
+    <label class="field">
+      <span>API key (only if your server needs one)</span>
+      <input id="apiKey" type="password" placeholder="Api-Key …" spellcheck="false">
+      <small>Stored only in this browser.</small>
+    </label>
+
+    <label class="chk block"><input type="checkbox" id="alwaysProxy"> Always route the file through the server
+      <small>Slower, but fixes region-blocked and broken direct links.</small>
+    </label>
+
+    <div class="servers">
+      <div class="servers-head">
+        <span>Servers</span>
+        <button type="button" id="recheck" class="ghost sm">Re-check</button>
+      </div>
+      <ul id="serverList" class="server-list"></ul>
+    </div>
+
+    <div class="selfhost">
+      <h3>Run your own</h3>
+      <p>Reliable, unlimited, private. Needs any small VPS with Docker:</p>
+<pre><code>docker run -d --name cobalt \
+  -p 9000:9000 \
+  -e API_URL="https://cobalt.yourdomain.com/" \
+  --restart unless-stopped \
+  ghcr.io/imputnet/cobalt:11</code></pre>
+      <p>Put it behind HTTPS, then paste the address above. Full guide:
+        <a href="https://github.com/imputnet/cobalt/blob/main/docs/run-an-instance.md" target="_blank" rel="noopener">run-an-instance.md</a>
+      </p>
+    </div>
+
+    <button id="resetBtn" class="ghost wide">Reset settings</button>
   </div>
-  <script>
-    // Add click animation feedback
-    document.querySelectorAll('a').forEach(link => {
-      link.addEventListener('click', function() {
-        this.style.transform = 'scale(0.95)';
-        setTimeout(() => {
-          this.style.transform = 'scale(1)';
-        }, 100);
-      });
-    });
-  </script>
+</div>
+
+<script src="assets/app.js"></script>
 </body>
 </html>

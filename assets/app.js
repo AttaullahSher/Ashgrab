@@ -1,0 +1,616 @@
+/* Snagr — paste a link, get the video.
+   Runs entirely in the browser. Talks to cobalt-compatible backends and
+   escalates through fallback strategies until something works. */
+
+'use strict';
+
+/* ---------------------------------------------------------------- config */
+
+const LS = 'snagr.settings.v1';
+const FALLBACK_SERVERS = [{ url: 'https://co.otomir23.me/', label: 'otomir23' }];
+
+const settings = Object.assign(
+  { custom: '', key: '', alwaysProxy: false },
+  JSON.parse(localStorage.getItem(LS) || '{}')
+);
+const saveSettings = () => localStorage.setItem(LS, JSON.stringify(settings));
+
+/** Runtime server table: { url, label, state: 'unknown'|'up'|'down'|'key', ms, custom } */
+let servers = [];
+/** Resolves once the list is loaded, so an early request can't run on an empty pool. */
+let serversReady;
+
+/* ------------------------------------------------------------------- dom */
+
+const $ = (id) => document.getElementById(id);
+const el = {
+  form: $('form'), url: $('url'), paste: $('pasteBtn'), go: $('goBtn'),
+  card: $('card'), thumb: $('thumb'), title: $('title'), source: $('source'),
+  fileinfo: $('fileinfo'), quality: $('quality'), audioOnly: $('audioOnly'),
+  dl: $('dlBtn'), progress: $('progress'), progressFill: $('progressFill'),
+  progressTxt: $('progressTxt'),
+  picker: $('picker'), pickerGrid: $('pickerGrid'),
+  statusBox: $('statusBox'), statusMsg: $('statusMsg'), spinner: $('spinner'),
+  logToggle: $('logToggle'), log: $('log'), error: $('error'),
+  sheet: $('sheet'), settingsBtn: $('settingsBtn'), closeSheet: $('closeSheet'),
+  customInstance: $('customInstance'), apiKey: $('apiKey'),
+  alwaysProxy: $('alwaysProxy'), serverList: $('serverList'), recheck: $('recheck'),
+  reset: $('resetBtn')
+};
+
+/* --------------------------------------------------------------- helpers */
+
+function timeoutFetch(url, opts = {}, ms = 20000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(t));
+}
+
+const normalize = (u) => (u.endsWith('/') ? u : u + '/');
+
+function log(kind, msg) {
+  const li = document.createElement('li');
+  li.className = kind; // try | ok | fail
+  li.innerHTML = `<b>${kind === 'ok' ? '✓' : kind === 'fail' ? '✗' : '→'}</b><span></span>`;
+  li.lastChild.textContent = msg;
+  el.log.appendChild(li);
+  el.log.scrollTop = el.log.scrollHeight;
+}
+
+function status(msg, state) {
+  el.statusBox.hidden = false;
+  el.statusMsg.textContent = msg;
+  el.spinner.className = 'spinner' + (state ? ' ' + state : '');
+}
+
+function showError(html) {
+  el.error.hidden = false;
+  el.error.innerHTML = html;
+}
+
+function clearAll() {
+  el.error.hidden = true;
+  el.card.hidden = true;
+  el.picker.hidden = true;
+  el.pickerGrid.innerHTML = '';
+  el.log.innerHTML = '';
+  el.progress.hidden = true;
+  el.progressFill.style.width = '0%';
+  el.dl.disabled = true;
+  el.dl.textContent = 'Download';
+  el.thumb.innerHTML = '';
+}
+
+/* -------------------------------------------------------------- platform */
+
+const PLATFORMS = [
+  [/youtube\.com|youtu\.be|yt\.be/i, 'youtube'],
+  [/instagram\.com|ig\.me/i, 'instagram'],
+  [/tiktok\.com/i, 'tiktok'],
+  [/facebook\.com|fb\.watch|fb\.com/i, 'facebook'],
+  [/(^|\.)(twitter|x)\.com/i, 'x'],
+  [/threads\.(net|com)/i, 'threads'],
+  [/reddit\.com|redd\.it/i, 'reddit'],
+  [/snapchat\.com/i, 'snapchat'],
+  [/vimeo\.com/i, 'vimeo'],
+  [/twitch\.tv/i, 'twitch'],
+  [/pinterest\.|pin\.it/i, 'pinterest'],
+  [/bsky\.app/i, 'bluesky'],
+  [/soundcloud\.com/i, 'soundcloud'],
+  [/dailymotion\.com|dai\.ly/i, 'dailymotion'],
+  [/tumblr\.com/i, 'tumblr'],
+  [/vk\.com/i, 'vk'],
+  [/bilibili\.com|b23\.tv/i, 'bilibili'],
+  [/rutube\.ru/i, 'rutube'],
+  [/loom\.com/i, 'loom'],
+  [/streamable\.com/i, 'streamable'],
+  [/newgrounds\.com/i, 'newgrounds'],
+  [/ok\.ru/i, 'ok']
+];
+
+function platformOf(u) {
+  for (const [re, name] of PLATFORMS) if (re.test(u)) return name;
+  try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return 'link'; }
+}
+
+function youtubeId(u) {
+  const m = u.match(/(?:v=|youtu\.be\/|shorts\/|embed\/|live\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+/* Thumbnail + title, best effort, never blocking the download path. */
+async function loadPreview(url) {
+  const yt = youtubeId(url);
+  if (yt) {
+    setThumbImage(`https://i.ytimg.com/vi/${yt}/hqdefault.jpg`);
+  }
+  try {
+    const r = await timeoutFetch(
+      'https://noembed.com/embed?url=' + encodeURIComponent(url), {}, 8000
+    );
+    const d = await r.json();
+    if (d && !d.error) {
+      if (d.title) el.title.textContent = d.title;
+      if (d.author_name) {
+        el.fileinfo.textContent = 'by ' + d.author_name;
+      }
+      if (!yt && d.thumbnail_url) setThumbImage(d.thumbnail_url);
+      return;
+    }
+  } catch { /* preview is optional */ }
+}
+
+function setThumbImage(src) {
+  const img = new Image();
+  img.alt = '';
+  img.referrerPolicy = 'no-referrer';
+  img.onload = () => { el.thumb.innerHTML = ''; el.thumb.appendChild(img); };
+  img.src = src;
+}
+
+/* Once we have a real media URL, use the media itself as the preview —
+   works for platforms that expose no oEmbed data at all. */
+function setThumbMedia(src, isAudio) {
+  if (isAudio) { el.thumb.textContent = '♪'; return; }
+  const v = document.createElement('video');
+  v.src = src; v.muted = true; v.playsInline = true; v.preload = 'metadata';
+  v.onloadeddata = () => { el.thumb.innerHTML = ''; el.thumb.appendChild(v); };
+  v.onerror = () => { /* keep whatever placeholder is there */ };
+}
+
+/* ---------------------------------------------------- server discovery */
+
+function loadServers() {
+  serversReady = loadServersInner();
+  return serversReady;
+}
+
+async function loadServersInner() {
+  let list = FALLBACK_SERVERS;
+  try {
+    const r = await timeoutFetch('assets/servers.json', { cache: 'no-cache' }, 8000);
+    const d = await r.json();
+    if (Array.isArray(d.servers) && d.servers.length) list = d.servers;
+  } catch { /* bundled fallback */ }
+
+  servers = list.map((s) => ({ url: normalize(s.url), label: s.label || hostOf(s.url), state: 'unknown', ms: null }));
+  applyCustom();
+  renderServers();
+  await probeAll();
+}
+
+function hostOf(u) { try { return new URL(u).hostname; } catch { return u; } }
+
+function applyCustom() {
+  servers = servers.filter((s) => !s.custom);
+  if (settings.custom.trim()) {
+    servers.unshift({
+      url: normalize(settings.custom.trim()),
+      label: 'yours', state: 'unknown', ms: null, custom: true
+    });
+  }
+}
+
+/* Probe: GET / returns cobalt's server info. Also tells us if a key is needed. */
+async function probe(s) {
+  const t0 = performance.now();
+  try {
+    const r = await timeoutFetch(s.url, { headers: { Accept: 'application/json' } }, 8000);
+    const d = await r.json();
+    s.ms = Math.round(performance.now() - t0);
+    if (d && d.cobalt) {
+      s.services = d.cobalt.services || [];
+      // A turnstile-protected server can't be used from a static page without a key.
+      s.state = d.cobalt.turnstileSitekey && !settings.key ? 'key' : 'up';
+    } else {
+      s.state = 'down';
+    }
+  } catch {
+    s.state = 'down';
+    s.ms = null;
+  }
+}
+
+async function probeAll() {
+  await Promise.all(servers.map(probe));
+  // fastest healthy first, custom always pinned to the top
+  servers.sort((a, b) => {
+    if (a.custom !== b.custom) return a.custom ? -1 : 1;
+    const rank = (s) => (s.state === 'up' ? 0 : s.state === 'key' ? 1 : 2);
+    if (rank(a) !== rank(b)) return rank(a) - rank(b);
+    return (a.ms ?? 9e9) - (b.ms ?? 9e9);
+  });
+  renderServers();
+}
+
+function renderServers() {
+  el.serverList.innerHTML = '';
+  for (const s of servers) {
+    const li = document.createElement('li');
+    const dot = document.createElement('span');
+    dot.className = 'dot ' + (s.state === 'up' ? 'up' : s.state === 'down' ? 'down' : s.state === 'key' ? 'key' : '');
+    const name = document.createElement('span');
+    name.textContent = s.label + (s.custom ? ' · ' + hostOf(s.url) : '');
+    const note = document.createElement('span');
+    note.className = 'note';
+    note.textContent =
+      s.state === 'up' ? s.ms + 'ms' :
+      s.state === 'key' ? 'needs key' :
+      s.state === 'down' ? 'offline' : 'checking…';
+    li.append(dot, name, note);
+    el.serverList.appendChild(li);
+  }
+}
+
+/* ------------------------------------------------------ strategy engine */
+
+/* Each strategy is a different way of asking for the same file. If one shape
+   of request fails, the next one changes something meaningful — the protocol
+   version, the quality, the codec, or who carries the bytes. */
+function strategies(url, opts) {
+  const q = opts.quality === 'max' ? 'max' : String(opts.quality);
+  const lower = { max: '1080', 1080: '720', 720: '480', 480: '360', 360: '240' }[q] || '480';
+
+  const base = {
+    url,
+    filenameStyle: 'pretty',
+    downloadMode: opts.audioOnly ? 'audio' : 'auto',
+    audioFormat: 'mp3'
+  };
+
+  const list = [
+    { name: 'standard', body: { ...base, videoQuality: q, youtubeVideoCodec: 'h264' } },
+    { name: 'proxied',  body: { ...base, videoQuality: q, youtubeVideoCodec: 'h264', alwaysProxy: true } },
+    { name: `lower quality (${lower}p)`, body: { ...base, videoQuality: lower, youtubeVideoCodec: 'h264' } },
+    { name: 'vp9 / hls path', body: { ...base, videoQuality: q, youtubeVideoCodec: 'vp9', youtubeHLS: true } },
+    { name: 'legacy api', body: { url, vQuality: q === 'max' ? 'max' : q, isAudioOnly: !!opts.audioOnly, aFormat: 'mp3', filenamePattern: 'pretty' }, legacy: true }
+  ];
+
+  if (settings.alwaysProxy) {
+    list.unshift({ name: 'proxied (your setting)', body: { ...base, videoQuality: q, youtubeVideoCodec: 'h264', alwaysProxy: true } });
+  }
+  if (!opts.audioOnly) {
+    // absolute last resort: at least get the audio out of it
+    list.push({ name: 'audio only rescue', body: { ...base, downloadMode: 'audio', videoQuality: lower }, rescue: true });
+  }
+  return list;
+}
+
+/* Error codes that mean "this server will never do it" vs "try another shape". */
+const HARD_FAIL = /unsupported|invalid.*link|content\.post\.private|content\.post\.age|link\.invalid/i;
+const AUTH_FAIL = /auth|jwt|turnstile|api\.key/i;
+const RATE_FAIL = /rate|limit|429/i;
+
+async function askServer(server, strat) {
+  const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+  if (settings.key) headers.Authorization = 'Api-Key ' + settings.key;
+
+  const r = await timeoutFetch(server.url, {
+    method: 'POST', headers, body: JSON.stringify(strat.body)
+  }, 30000);
+
+  let d;
+  try { d = await r.json(); } catch { throw new Error('server sent a non-json reply (http ' + r.status + ')'); }
+
+  const st = d.status;
+  if (st === 'error' || st === 'rate-limit') {
+    const code = (d.error && d.error.code) || d.text || 'unknown error';
+    const err = new Error(code);
+    err.code = code;
+    throw err;
+  }
+  // v11: tunnel | redirect | picker ; v7: stream | redirect | picker | success
+  if (st === 'tunnel' || st === 'redirect' || st === 'stream' || st === 'success') {
+    return { kind: 'file', url: d.url, filename: d.filename || d.text || '' };
+  }
+  if (st === 'picker') {
+    const items = (d.picker || []).map((p) => ({
+      type: p.type || 'photo', url: p.url, thumb: p.thumb || p.thumbnail
+    }));
+    return { kind: 'picker', items, audio: d.audio };
+  }
+  throw new Error('unexpected reply: ' + JSON.stringify(st));
+}
+
+/* Walk servers × strategies until something returns a file. */
+async function resolve(url, opts) {
+  if (!servers.length) servers = FALLBACK_SERVERS.map((s) => ({ ...s, state: 'unknown', ms: null }));
+  const usable = servers.filter((s) => s.state !== 'down');
+  const pool = usable.length ? usable : servers;
+  const plan = strategies(url, opts);
+  const skipped = [];
+
+  for (const server of pool) {
+    if (server.state === 'key' && !settings.key) {
+      log('fail', `${server.label}: needs an api key — skipped`);
+      skipped.push(server.label);
+      continue;
+    }
+    for (const strat of plan) {
+      // don't silently hand back audio unless every real option is gone
+      if (strat.rescue && server !== pool[pool.length - 1]) continue;
+
+      status(`Trying ${server.label} · ${strat.name}…`);
+      log('try', `${server.label} · ${strat.name}`);
+      try {
+        const res = await askServer(server, strat);
+        log('ok', `${server.label} answered · ${strat.name}`);
+        if (strat.rescue) log('try', 'video was unavailable everywhere — this is the audio track');
+        res.audioOnly = !!opts.audioOnly || !!strat.rescue;
+        return res;
+      } catch (e) {
+        const msg = e.name === 'AbortError' ? 'timed out' : (e.code || e.message);
+        log('fail', `${server.label} · ${strat.name}: ${msg}`);
+
+        if (AUTH_FAIL.test(msg)) { server.state = 'key'; break; }   // this server is unusable, next server
+        if (RATE_FAIL.test(msg)) break;                             // don't hammer it, next server
+        if (HARD_FAIL.test(msg)) {
+          // the link itself is the problem: retrying the same api with different
+          // knobs won't help, but an older api version sometimes still parses it
+          const legacy = plan.find((p) => p.legacy);
+          if (legacy && !strat.legacy) {
+            status(`Trying ${server.label} · ${legacy.name}…`);
+            log('try', `${server.label} · ${legacy.name}`);
+            try {
+              const res = await askServer(server, legacy);
+              log('ok', `${server.label} answered · ${legacy.name}`);
+              res.audioOnly = !!opts.audioOnly;
+              return res;
+            } catch (e2) {
+              log('fail', `${server.label} · ${legacy.name}: ${e2.code || e2.message}`);
+            }
+          }
+          break;
+        }
+      }
+    }
+  }
+  const err = new Error('all strategies failed');
+  err.skipped = skipped;
+  throw err;
+}
+
+/* ------------------------------------------------------------- download */
+
+let current = null; // last resolved result
+
+async function download(fileUrl, filename, isAudio) {
+  el.dl.disabled = true;
+  el.progress.hidden = false;
+  el.progressFill.style.width = '0%';
+  el.progressTxt.textContent = 'Starting…';
+
+  // strategy 1: stream it into a blob so the browser saves it with a real name
+  try {
+    const r = await timeoutFetch(fileUrl, {}, 600000);
+    if (!r.ok) throw new Error('http ' + r.status);
+    const total = +r.headers.get('content-length') || 0;
+    const reader = r.body.getReader();
+    const chunks = [];
+    let got = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      got += value.length;
+      if (total) {
+        const pct = Math.round((got / total) * 100);
+        el.progressFill.style.width = pct + '%';
+        el.progressTxt.textContent = pct + '% · ' + mb(got) + ' / ' + mb(total);
+      } else {
+        el.progressTxt.textContent = mb(got) + ' downloaded';
+      }
+    }
+    const blob = new Blob(chunks);
+    saveBlob(blob, filename || fallbackName(isAudio));
+    el.progressFill.style.width = '100%';
+    el.progressTxt.textContent = 'Saved · ' + mb(blob.size);
+    log('ok', 'saved ' + mb(blob.size));
+  } catch (e) {
+    // strategy 2: let the browser handle it directly
+    log('fail', 'in-page save failed (' + (e.message || e.name) + ') — handing it to the browser');
+    el.progressTxt.textContent = 'Opening download…';
+    const a = document.createElement('a');
+    a.href = fileUrl;
+    a.download = filename || fallbackName(isAudio);
+    a.rel = 'noopener';
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    el.progressTxt.textContent = 'Download handed to your browser';
+  } finally {
+    el.dl.disabled = false;
+  }
+}
+
+const mb = (b) => (b / 1048576).toFixed(1) + ' MB';
+const fallbackName = (isAudio) => 'snagr-' + Date.now() + (isAudio ? '.mp3' : '.mp4');
+
+function saveBlob(blob, name) {
+  const u = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = u; a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 60000);
+}
+
+/* ------------------------------------------------------------ main flow */
+
+async function run(url) {
+  clearAll();
+  el.go.disabled = true;
+  el.card.hidden = false;
+  el.title.textContent = 'Looking it up…';
+  el.source.textContent = platformOf(url);
+  el.fileinfo.textContent = '';
+  el.thumb.textContent = platformOf(url).slice(0, 1).toUpperCase();
+  status('Working…');
+
+  loadPreview(url); // fire and forget
+
+  const opts = { quality: el.quality.value, audioOnly: el.audioOnly.checked };
+
+  try {
+    await serversReady;               // a ?url= link can land before the list is ready
+    const res = await resolve(url, opts);
+
+    if (res.kind === 'picker') {
+      status('Found ' + res.items.length + ' items', 'done');
+      renderPicker(res);
+      el.card.hidden = true;
+      return;
+    }
+
+    current = res;
+    setThumbMedia(res.url, res.audioOnly);
+    if (res.filename) {
+      el.title.textContent = res.filename.replace(/\.[a-z0-9]{2,4}$/i, '');
+      el.fileinfo.textContent = res.audioOnly ? 'audio · mp3' : 'video · mp4';
+    } else if (el.title.textContent === 'Looking it up…') {
+      el.title.textContent = 'Ready to download';
+    }
+    el.dl.disabled = false;
+    el.dl.textContent = res.audioOnly ? 'Download audio' : 'Download video';
+    status('Ready', 'done');
+  } catch (e) {
+    status("Couldn't get that one", 'fail');
+    el.card.hidden = true;
+    el.logToggle.setAttribute('aria-expanded', 'true');
+    el.log.hidden = false;
+    showError(
+      '<b>Every server and every fallback failed for this link.</b>' +
+      '<ul>' +
+      '<li>Check the link opens in a normal browser tab — private, deleted and age-gated posts can\'t be fetched.</li>' +
+      '<li>Public servers get rate-limited. Wait a minute and press Get again.</li>' +
+      '<li>For links that always work, run your own server (Settings → Run your own) and paste its address.</li>' +
+      '</ul>'
+    );
+  } finally {
+    el.go.disabled = false;
+  }
+}
+
+function renderPicker(res) {
+  el.picker.hidden = false;
+  el.pickerGrid.innerHTML = '';
+  res.items.forEach((item, i) => {
+    const b = document.createElement('button');
+    b.className = 'pick';
+    b.type = 'button';
+    if (item.thumb) {
+      const img = new Image();
+      img.src = item.thumb; img.alt = ''; img.referrerPolicy = 'no-referrer';
+      b.appendChild(img);
+    } else if (item.type === 'video') {
+      const v = document.createElement('video');
+      v.src = item.url; v.muted = true; v.preload = 'metadata'; v.playsInline = true;
+      b.appendChild(v);
+    }
+    const s = document.createElement('span');
+    s.textContent = (item.type || 'file') + ' ' + (i + 1);
+    b.appendChild(s);
+    b.onclick = () => download(item.url, `snagr-${i + 1}.${item.type === 'photo' ? 'jpg' : 'mp4'}`, false);
+    el.pickerGrid.appendChild(b);
+  });
+  if (res.audio) {
+    const b = document.createElement('button');
+    b.className = 'pick';
+    b.type = 'button';
+    b.innerHTML = '<span>♪ audio track</span>';
+    b.onclick = () => download(res.audio, 'snagr-audio.mp3', true);
+    el.pickerGrid.appendChild(b);
+  }
+}
+
+/* ---------------------------------------------------------------- wiring */
+
+el.form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const u = el.url.value.trim();
+  if (!u) return;
+  run(u);
+});
+
+el.paste.addEventListener('click', async () => {
+  try {
+    const t = (await navigator.clipboard.readText()).trim();
+    if (t) { el.url.value = t; run(t); }
+  } catch {
+    el.url.focus();
+    el.paste.textContent = 'Ctrl+V';
+    setTimeout(() => (el.paste.textContent = 'Paste'), 2000);
+  }
+});
+
+el.dl.addEventListener('click', () => {
+  if (current) download(current.url, current.filename, current.audioOnly);
+});
+
+// changing quality / format invalidates the resolved link
+[el.quality, el.audioOnly].forEach((n) =>
+  n.addEventListener('change', () => {
+    if (el.url.value.trim() && current) run(el.url.value.trim());
+  })
+);
+
+el.logToggle.addEventListener('click', () => {
+  const open = el.logToggle.getAttribute('aria-expanded') === 'true';
+  el.logToggle.setAttribute('aria-expanded', String(!open));
+  el.log.hidden = open;
+});
+
+/* settings sheet */
+const openSheet = (e) => {
+  if (e) e.preventDefault();
+  el.customInstance.value = settings.custom;
+  el.apiKey.value = settings.key;
+  el.alwaysProxy.checked = settings.alwaysProxy;
+  el.sheet.hidden = false;
+};
+const closeSheet = () => { el.sheet.hidden = true; };
+
+el.settingsBtn.addEventListener('click', openSheet);
+$('settingsLink').addEventListener('click', openSheet);
+$('selfhostLink').addEventListener('click', (e) => {
+  openSheet(e);
+  document.querySelector('.selfhost').scrollIntoView({ behavior: 'smooth' });
+});
+el.closeSheet.addEventListener('click', closeSheet);
+el.sheet.addEventListener('click', (e) => { if (e.target === el.sheet) closeSheet(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
+
+el.customInstance.addEventListener('change', () => {
+  settings.custom = el.customInstance.value.trim();
+  saveSettings();
+  applyCustom();
+  renderServers();
+  probeAll();
+});
+el.apiKey.addEventListener('change', () => {
+  settings.key = el.apiKey.value.trim();
+  saveSettings();
+  probeAll();
+});
+el.alwaysProxy.addEventListener('change', () => {
+  settings.alwaysProxy = el.alwaysProxy.checked;
+  saveSettings();
+});
+el.recheck.addEventListener('click', () => {
+  servers.forEach((s) => { s.state = 'unknown'; s.ms = null; });
+  renderServers();
+  probeAll();
+});
+el.reset.addEventListener('click', () => {
+  localStorage.removeItem(LS);
+  settings.custom = ''; settings.key = ''; settings.alwaysProxy = false;
+  openSheet();
+  loadServers();
+});
+
+/* start: accept ?url= so the page can be used as a share target / bookmarklet */
+loadServers();
+const shared = new URLSearchParams(location.search).get('url');
+if (shared) { el.url.value = shared; run(shared); }
