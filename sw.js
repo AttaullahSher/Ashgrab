@@ -1,11 +1,12 @@
 /* Ashgrab service worker: network-first with cache fallback.
    Fresh code always wins when online; the app still opens offline. */
 
-const CACHE = 'ashgrab-v2';
+const CACHE = 'ashgrab-v3';
 const SHELL = [
   './', './index.html', './manifest.json',
   './assets/style.css', './assets/app.js', './assets/servers.json',
-  './assets/favicon.svg', './assets/icon-192.png', './assets/icon-512.png'
+  './assets/favicon.svg', './assets/icon-192.png', './assets/icon-512.png',
+  './assets/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', (e) => {

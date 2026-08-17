@@ -72,10 +72,15 @@ tried and why it failed.
 - **Direct file links** — a URL that already ends in `.mp4`/`.mp3`/`.jpg` skips the
   servers entirely and downloads straight away
 - **Carousels / albums** (Instagram, Twitter, Reddit galleries) → picker grid, download items individually
-- **Audio only** → mp3 checkbox · **Quality** → best / 1080 / 720 / 480 / 360
+- **Audio only** → Video/Music segmented control · **Quality** → best / 1080 / 720 / 480 / 360
 - **Recent links** — your last 8 grabs, one tap to re-grab (stored only in your browser)
 - **Installable PWA** — add to home screen on Android and Ashgrab appears in the system
   **share sheet**: share a video from any app straight into it. Works offline as a shell.
+- **iPhone share sheet** — iOS has no PWA share target, so Ashgrab builds you a Shortcut
+  instead: pick what it should grab, tap once, and you get a real `.shortcut` file
+  (a *URL Encode* → *Open URLs* pair, typed as an `ActionExtension`). The hand-built
+  four-tap recipe is still there if you'd rather not install a file.
+- **Light and dark** — follows the system, or pin it in Settings
 - **`?url=` / `?text=` parameters** → `https://attaullahsher.github.io/Ashgrab/?url=<link>`
   resolves immediately (bookmarklets, share targets)
 - **Phones** → single-column layout, big tap targets
@@ -125,11 +130,16 @@ No build step, no dependencies, no framework:
 ```
 index.html                 markup
 assets/style.css           styling
-assets/app.js              strategy engine + download
+assets/app.js              strategy engine + download, then the interface layer
 assets/servers.json        backend list (auto-refreshed weekly)
+assets/favicon.svg         app mark — every png icon is rendered from this
 manifest.json + sw.js      PWA: installable, share target, offline shell
 scripts/update-servers.mjs weekly server-list refresh
 ```
+
+The bottom of `app.js` is presentation only — the pill controls, the appearance
+switch and the Shortcut builder. The `<select>` elements are still the source of
+truth the engine reads, so the two halves stay independent.
 
 ## Legal
 
