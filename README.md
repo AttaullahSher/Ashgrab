@@ -60,8 +60,8 @@ The download itself has fallbacks too: stream into a blob with a live progress b
 proper filename → if that's blocked, a native `download` link → if that's blocked, open in
 a new tab.
 
-Every attempt is visible — tap the status line to expand the log and see exactly what was
-tried and why it failed.
+None of this is narrated on screen: the status line stays human ("Finding your video…"),
+and a failure is one plain sentence with a way out, not a list of routes.
 
 ## Also handles
 
@@ -99,14 +99,17 @@ in particular is blocked on many of them. (A live capability test on 2026-08-17 
 exactly **one** public helper actually delivering YouTube bytes; the rest were dead,
 bot-walled, or require a key.) Your own instance is unlimited, private, and fast.
 
-One command on any Ubuntu VPS — including an Oracle Cloud Always Free ARM machine:
+**No terminal needed** — click-by-click guide, about five minutes:
+**[selfhost/README.md](selfhost/README.md)**. It deploys `render.yaml` to Render's
+free tier and gives you an address to paste into **Settings → Your own server**.
+
+Already have a VPS? One command, no domain required:
 
 ```bash
-sudo bash selfhost/setup-cobalt.sh dl.yourdomain.com you@example.com
+curl -fsSL https://attaullahsher.github.io/Ashgrab/selfhost/setup-cobalt.sh -o setup.sh && sudo bash setup.sh
 ```
 
-It installs Docker + cobalt + Caddy (automatic HTTPS) and prints the address to paste
-into **Settings → Your own server**. Or by hand:
+Or by hand:
 
 ```bash
 docker run -d --name cobalt \
