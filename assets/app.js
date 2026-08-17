@@ -339,6 +339,9 @@ function strategies(url, opts) {
 
 /* Error codes that mean "this server will never do it" vs "try another shape". */
 const HARD_FAIL = /unsupported|invalid.*link|content\.post\.private|content\.post\.age|link\.invalid/i;
+/* YouTube demands an account for some videos. No retry, codec or quality
+   changes that — only an engine that can sign in. */
+const LOGIN_FAIL = /youtube\.login|youtube\.token|\blogin\b|sign.?in/i;
 const AUTH_FAIL = /auth|jwt|turnstile|api\.key/i;
 const RATE_FAIL = /rate|limit|429/i;
 
@@ -375,6 +378,7 @@ async function askServer(server, strat) {
 
 /* What went wrong, in plain words — the raw code still drives the logic. */
 function friendly(msg) {
+  if (LOGIN_FAIL.test(msg)) return 'youtube wants an account for this one';
   if (AUTH_FAIL.test(msg)) return 'needs a pass';
   if (RATE_FAIL.test(msg)) return 'too busy right now';
   if (/timed out|abort/i.test(msg)) return 'took too long';
@@ -399,6 +403,7 @@ async function resolve(url, opts, dudServers = new Set()) {
   });
   const plan = strategies(url, opts);
   const skipped = [];
+  let needsLogin = false;
   const tried = new Set();
   const mark = (s, p) => tried.add(s.url + '|' + p.name);
   const won = (s, res, rescue) => {
@@ -450,6 +455,7 @@ async function resolve(url, opts, dudServers = new Set()) {
         const msg = e.name === 'AbortError' ? 'timed out' : (e.code || e.message);
         log('fail', `${server.nick} · ${strat.name}: ${friendly(msg)}`);
 
+        if (LOGIN_FAIL.test(msg)) { needsLogin = true; break; }     // no knob fixes this, next server
         if (AUTH_FAIL.test(msg)) { server.state = 'key'; break; }   // this server is unusable, next server
         if (RATE_FAIL.test(msg)) break;                             // don't hammer it, next server
         if (HARD_FAIL.test(msg)) {
@@ -474,6 +480,7 @@ async function resolve(url, opts, dudServers = new Set()) {
   }
   const err = new Error('all strategies failed');
   err.skipped = skipped;
+  err.needsLogin = needsLogin;
   throw err;
 }
 
@@ -691,8 +698,13 @@ async function run(rawUrl) {
     status("Couldn't get that one", 'fail');
     el.card.hidden = true;
     showError(
-      '<b>Can\'t download this one.</b>' +
-      '<p>Check the link opens normally — private and deleted posts can\'t be saved.</p>' +
+      (e && e.needsLogin
+        ? '<b>YouTube wants an account for this one.</b>' +
+          '<p>It hands this video to signed-in viewers only. An engine of your own can sign in — ' +
+          '<a href="https://github.com/AttaullahSher/Ashgrab/blob/master/selfhost/README.md" ' +
+          'target="_blank" rel="noopener">here is how</a>.</p>'
+        : '<b>Can\'t download this one.</b>' +
+          '<p>Check the link opens normally — private and deleted posts can\'t be saved.</p>') +
       '<p><button id="retryBtn" class="ghost" type="button">Try again</button> ' +
       '<a id="altBtn" class="ghost" href="https://cobalt.tools/" target="_blank" rel="noopener">Open cobalt.tools</a></p>'
     );
