@@ -207,10 +207,12 @@ function setThumbImage(src) {
   img.src = src;
 }
 
+const NOTE_SVG = '<svg viewBox="0 0 24 24" class="note" aria-hidden="true"><path d="M9 18V5l12-2v13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+
 /* Once we have a real media URL, use the media itself as the preview —
    works for platforms that expose no oEmbed data at all. */
 function setThumbMedia(src, isAudio) {
-  if (isAudio) { el.thumb.textContent = '♪'; return; }
+  if (isAudio) { el.thumb.innerHTML = NOTE_SVG; return; }
   const v = document.createElement('video');
   v.src = src; v.muted = true; v.playsInline = true; v.preload = 'metadata';
   v.onloadeddata = () => { el.thumb.innerHTML = ''; el.thumb.appendChild(v); };
@@ -674,7 +676,7 @@ function renderPicker(res) {
     const b = document.createElement('button');
     b.className = 'pick';
     b.type = 'button';
-    b.innerHTML = '<span>♪ audio track</span>';
+    b.innerHTML = NOTE_SVG + '<span>audio track</span>';
     b.onclick = () => download(res.audio, 'ashgrab-audio.mp3', true);
     el.pickerGrid.appendChild(b);
   }
