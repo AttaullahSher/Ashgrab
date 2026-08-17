@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b0c14">
+<meta name="theme-color" content="#f2f5fa">
 <title>Ashgrab — paste a link, grab the video</title>
 <meta name="description" content="Paste any video link. Ashgrab finds it, previews it, and downloads it. YouTube, Instagram, TikTok, Facebook, X, Reddit and more.">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
@@ -17,9 +17,6 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
-
-<div class="blob blob-a" aria-hidden="true"></div>
-<div class="blob blob-b" aria-hidden="true"></div>
 
 <main class="wrap">
 
@@ -85,40 +82,68 @@
   <div id="error" class="error" hidden></div>
 
   <footer class="foot">
-    <p class="foot-line">Private <span class="dot">·</span> Free <span class="dot">·</span> Open source <span class="dot">·</span> Built by Asher</p>
-
-    <details>
-      <summary>How it works</summary>
-      <p>Ashgrab runs entirely in your browser and asks an open-source
-         <a href="https://github.com/imputnet/cobalt" target="_blank" rel="noopener">cobalt</a>
-         server to fetch the file. If a link fails, it automatically retries with different
-         settings and different servers until one delivers.</p>
-    </details>
-
-    <details>
-      <summary>Privacy</summary>
-      <p>No account, no tracking, no analytics, no cookies. Nothing you paste is stored on any
-         server — your recent list lives only in this browser and you can clear it anytime.</p>
-    </details>
-
-    <details>
-      <summary>Run your own server</summary>
-      <p>Public servers get busy and rate-limited.
-         <a href="#" id="selfhostLink">Set up your own in 2 minutes</a> and paste its address in
-         <a href="#" id="settingsLink">settings</a> — your grabs then always work, at full speed.</p>
-    </details>
-
-    <details>
-      <summary>Fair use</summary>
-      <p>Download only what you have the right to download — your own uploads, licensed
-         material, or content whose license permits it. Respect each platform's terms and
-         creators' copyright.</p>
-    </details>
-
-    <p class="fine"><a href="https://github.com/AttaullahSher/Ashgrab" target="_blank" rel="noopener">Source on GitHub</a>
-       · Add to home screen to grab straight from your share sheet</p>
+    <nav class="foot-links">
+      <a href="#" data-info="info-about">About</a>
+      <a href="#" data-info="info-how">How it works</a>
+      <a href="#" data-info="info-privacy">Privacy</a>
+      <a href="#" data-info="info-fair">Fair use</a>
+    </nav>
+    <p class="fine">Free · Made by Asher</p>
   </footer>
 </main>
+
+<!-- info screen -->
+<div id="infoSheet" class="sheet" hidden>
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <h2>About Ashgrab</h2>
+      <button id="closeInfo" class="icon-btn" aria-label="Close">✕</button>
+    </div>
+
+    <section class="info-section" id="info-about">
+      <h3>What is this?</h3>
+      <p>Ashgrab is a free tool for saving videos. Paste a link from YouTube, TikTok,
+         Instagram, Facebook, X and many other apps — you'll see a little preview, then
+         one tap downloads the video to your device. That's the whole thing.</p>
+    </section>
+
+    <section class="info-section" id="info-how">
+      <h3>How it works</h3>
+      <p>When you paste a link, Ashgrab asks a free helper service to fetch the video and
+         pass it to your device. If one helper is busy or down, Ashgrab quietly tries
+         others — with different settings too — until one delivers. You don't have to do
+         anything; it sorts itself out.</p>
+      <p>Tip: on your phone, choose <b>Add to Home Screen</b> in your browser menu.
+         Ashgrab then shows up in your Share menu, so you can share any video straight
+         into it from the app you're watching in.</p>
+    </section>
+
+    <section class="info-section" id="info-privacy">
+      <h3>Privacy</h3>
+      <p>No account, no sign-up, no tracking, no ads. Nothing you paste is saved anywhere —
+         the "Recent" list lives only on your own device, and you can clear it anytime with
+         one tap.</p>
+    </section>
+
+    <section class="info-section" id="info-fair">
+      <h3>Fair use</h3>
+      <p>Please only save videos you have the right to keep — your own posts, or content the
+         creator is happy for you to download. Be kind to creators.</p>
+    </section>
+
+    <section class="info-section">
+      <h3>For power users</h3>
+      <p>Busy hours can slow the free helpers down.
+         <a href="#" id="selfhostLink">Run your own helper</a> and paste its address in
+         <a href="#" id="settingsLink">settings</a> — your downloads then always work, at
+         full speed. The project is open source on
+         <a href="https://github.com/AttaullahSher/Ashgrab" target="_blank" rel="noopener">GitHub</a>.</p>
+    </section>
+
+    <p class="info-credit">Made with care by <b>Asher</b> — systems builder, Abu Dhabi.<br>
+       <a href="https://github.com/AttaullahSher" target="_blank" rel="noopener">github.com/AttaullahSher</a></p>
+  </div>
+</div>
 
 <!-- settings drawer -->
 <div id="sheet" class="sheet" hidden>

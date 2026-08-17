@@ -595,11 +595,10 @@ async function run(rawUrl) {
     el.logToggle.setAttribute('aria-expanded', 'true');
     el.log.hidden = false;
     showError(
-      '<b>Every server and every fallback failed for this link.</b>' +
+      '<b>That one didn\'t work — sorry.</b>' +
       '<ul>' +
-      '<li>Check the link opens in a normal browser tab — private, deleted and age-gated posts can\'t be fetched.</li>' +
-      '<li>Public servers get rate-limited. Wait a minute and try again.</li>' +
-      '<li>For links that always work, run your own server (Settings → Run your own) and paste its address.</li>' +
+      '<li>Make sure the link opens normally in your browser. Private or deleted posts can\'t be saved.</li>' +
+      '<li>The free helpers get busy sometimes. Wait a minute and try again — it usually works.</li>' +
       '</ul>' +
       '<p><button id="retryBtn" class="ghost" type="button">Try again</button></p>'
     );
@@ -749,8 +748,10 @@ el.logToggle.addEventListener('click', () => {
 });
 
 /* settings sheet */
+const infoSheet = $('infoSheet');
 const openSheet = (e) => {
   if (e) e.preventDefault();
+  infoSheet.hidden = true;
   el.customInstance.value = settings.custom;
   el.apiKey.value = settings.key;
   el.alwaysProxy.checked = settings.alwaysProxy;
@@ -766,7 +767,22 @@ $('selfhostLink').addEventListener('click', (e) => {
 });
 el.closeSheet.addEventListener('click', closeSheet);
 el.sheet.addEventListener('click', (e) => { if (e.target === el.sheet) closeSheet(); });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
+
+/* info screen — footer links open it at the matching section */
+document.querySelectorAll('[data-info]').forEach((a) =>
+  a.addEventListener('click', (e) => {
+    e.preventDefault();
+    infoSheet.hidden = false;
+    const target = $(a.dataset.info);
+    if (target) requestAnimationFrame(() => target.scrollIntoView({ block: 'start' }));
+  })
+);
+$('closeInfo').addEventListener('click', () => { infoSheet.hidden = true; });
+infoSheet.addEventListener('click', (e) => { if (e.target === infoSheet) infoSheet.hidden = true; });
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { closeSheet(); infoSheet.hidden = true; }
+});
 
 el.customInstance.addEventListener('change', () => {
   settings.custom = el.customInstance.value.trim();
