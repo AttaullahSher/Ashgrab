@@ -76,10 +76,14 @@ tried and why it failed.
 - **Recent links** — your last 8 grabs, one tap to re-grab (stored only in your browser)
 - **Installable PWA** — add to home screen on Android and Ashgrab appears in the system
   **share sheet**: share a video from any app straight into it. Works offline as a shell.
-- **iPhone share sheet** — iOS has no PWA share target, so Ashgrab builds you a Shortcut
-  instead: pick what it should grab, tap once, and you get a real `.shortcut` file
-  (a *URL Encode* → *Open URLs* pair, typed as an `ActionExtension`). The hand-built
-  four-tap recipe is still there if you'd rather not install a file.
+- **iPhone share sheet** — iOS has no PWA share target, so Ashgrab walks you through
+  building a Shortcut: pick what it should grab, tap **Copy my link**, then follow five
+  steps in the Shortcuts app. Apple refuses to import unsigned `.shortcut` files
+  (*"Importing unsigned shortcut files is not supported"*) and the **Allow Untrusted
+  Shortcuts** switch does not change that — it only governs links Apple has signed. To
+  offer a true one-tap install, build it once on your own iPhone, share it to iCloud, and
+  paste the link into `ICLOUD_SHORTCUT` at the bottom of `assets/app.js`; the one-tap
+  button then appears by itself.
 - **Light and dark** — follows the system, or pin it in Settings
 - **`?url=` / `?text=` parameters** → `https://attaullahsher.github.io/Ashgrab/?url=<link>`
   resolves immediately (bookmarklets, share targets)

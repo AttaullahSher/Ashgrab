@@ -509,7 +509,13 @@ svg.defs { position: absolute; width: 0; height: 0; }
   word-break: break-all; line-height: 1.5;
 }
 .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
-.btn-row .dl { margin-top: 0; }
+.btn-row .dl { margin-top: 0; flex: 1 1 200px; width: auto; }
+/* anchors styled as buttons must not pick up link underlines */
+a.dl, a.dl:hover { text-decoration: none; color: #fff; }
+.dl.quiet {
+  background: var(--fill); color: var(--label); box-shadow: none;
+}
+a.dl.quiet, a.dl.quiet:hover { color: var(--label); }
 .note { font-size: 13px; color: var(--label-2); line-height: 1.5; }
 .linkish { color: var(--blue); font-size: 15px; font-weight: 600; padding: 8px 0; text-align: left; }
 .info-credit { margin-top: 18px; font-size: 13px; color: var(--label-3); text-align: center; line-height: 1.6; }

@@ -855,10 +855,11 @@ $('shortcutBtn').addEventListener('click', () => { shortcutSheet.hidden = false;
 $('closeShortcut').addEventListener('click', () => { shortcutSheet.hidden = true; });
 shortcutSheet.addEventListener('click', (e) => { if (e.target === shortcutSheet) shortcutSheet.hidden = true; });
 $('copyTemplate').addEventListener('click', async () => {
-  const btn = $('copyTemplate');
+  // only the label changes — the button carries an icon alongside it
+  const label = $('copyLabel');
   try {
     await navigator.clipboard.writeText(shareBase);
-    btn.textContent = 'Copied ✓';
+    label.textContent = 'Copied ✓';
   } catch {
     // clipboard blocked: select the text so a long-press copy works
     const range = document.createRange();
@@ -866,9 +867,9 @@ $('copyTemplate').addEventListener('click', async () => {
     const sel = getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
-    btn.textContent = 'Hold to copy';
+    label.textContent = 'Hold the link above to copy';
   }
-  setTimeout(() => (btn.textContent = 'Copy'), 2500);
+  setTimeout(() => (label.textContent = 'Copy my link'), 2500);
 });
 
 /* info screen — footer links open it at the matching section */
@@ -1068,129 +1069,20 @@ function renderShortcut() {
 initSegment($('scModeSeg'), (value) => { shortcut.mode = value; renderShortcut(); });
 renderShortcut();
 
-/* Build a Shortcuts file: URL-encode whatever was shared, then open Ashgrab
-   with it. Registered as an ActionExtension so iOS lists it in the Share Sheet. */
-function shortcutFile() {
-  const OBJ = '￼';                     // the object-replacement character
-  const uuid = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())).toUpperCase();
-  const target = shortcutBase() + OBJ;
-  const index = target.indexOf(OBJ);
-  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+/* Apple refuses to import an unsigned shortcut file ("Importing unsigned
+   shortcut files is not supported"), and the Allow Untrusted Shortcuts switch
+   does not change that — it only governs signed links. So the guided build is
+   the real path, and the copy button is the thing that makes it painless.
 
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-\t<key>WFWorkflowClientVersion</key>
-\t<string>2038.1.1</string>
-\t<key>WFWorkflowMinimumClientVersion</key>
-\t<integer>900</integer>
-\t<key>WFWorkflowMinimumClientVersionString</key>
-\t<string>900</string>
-\t<key>WFWorkflowHasShortcutInputVariables</key>
-\t<true/>
-\t<key>WFWorkflowIcon</key>
-\t<dict>
-\t\t<key>WFWorkflowIconGlyphNumber</key>
-\t\t<integer>59511</integer>
-\t\t<key>WFWorkflowIconStartColor</key>
-\t\t<integer>946986751</integer>
-\t</dict>
-\t<key>WFWorkflowImportQuestions</key>
-\t<array/>
-\t<key>WFWorkflowTypes</key>
-\t<array>
-\t\t<string>ActionExtension</string>
-\t</array>
-\t<key>WFWorkflowInputContentItemClasses</key>
-\t<array>
-\t\t<string>WFURLContentItem</string>
-\t\t<string>WFStringContentItem</string>
-\t\t<string>WFRichTextContentItem</string>
-\t\t<string>WFSafariWebPageContentItem</string>
-\t</array>
-\t<key>WFWorkflowActions</key>
-\t<array>
-\t\t<dict>
-\t\t\t<key>WFWorkflowActionIdentifier</key>
-\t\t\t<string>is.workflow.actions.urlencode</string>
-\t\t\t<key>WFWorkflowActionParameters</key>
-\t\t\t<dict>
-\t\t\t\t<key>UUID</key>
-\t\t\t\t<string>${uuid}</string>
-\t\t\t\t<key>WFEncodeMode</key>
-\t\t\t\t<string>Encode</string>
-\t\t\t\t<key>WFInput</key>
-\t\t\t\t<dict>
-\t\t\t\t\t<key>Value</key>
-\t\t\t\t\t<dict>
-\t\t\t\t\t\t<key>attachmentsByRange</key>
-\t\t\t\t\t\t<dict>
-\t\t\t\t\t\t\t<key>{0, 1}</key>
-\t\t\t\t\t\t\t<dict>
-\t\t\t\t\t\t\t\t<key>Type</key>
-\t\t\t\t\t\t\t\t<string>ExtensionInput</string>
-\t\t\t\t\t\t\t</dict>
-\t\t\t\t\t\t</dict>
-\t\t\t\t\t\t<key>string</key>
-\t\t\t\t\t\t<string>${OBJ}</string>
-\t\t\t\t\t</dict>
-\t\t\t\t\t<key>WFSerializationType</key>
-\t\t\t\t\t<string>WFTextTokenString</string>
-\t\t\t\t</dict>
-\t\t\t</dict>
-\t\t</dict>
-\t\t<dict>
-\t\t\t<key>WFWorkflowActionIdentifier</key>
-\t\t\t<string>is.workflow.actions.openurl</string>
-\t\t\t<key>WFWorkflowActionParameters</key>
-\t\t\t<dict>
-\t\t\t\t<key>Show-WFInput</key>
-\t\t\t\t<true/>
-\t\t\t\t<key>WFInput</key>
-\t\t\t\t<dict>
-\t\t\t\t\t<key>Value</key>
-\t\t\t\t\t<dict>
-\t\t\t\t\t\t<key>attachmentsByRange</key>
-\t\t\t\t\t\t<dict>
-\t\t\t\t\t\t\t<key>{${index}, 1}</key>
-\t\t\t\t\t\t\t<dict>
-\t\t\t\t\t\t\t\t<key>OutputName</key>
-\t\t\t\t\t\t\t\t<string>URL Encoded Text</string>
-\t\t\t\t\t\t\t\t<key>OutputUUID</key>
-\t\t\t\t\t\t\t\t<string>${uuid}</string>
-\t\t\t\t\t\t\t\t<key>Type</key>
-\t\t\t\t\t\t\t\t<string>ActionOutput</string>
-\t\t\t\t\t\t\t</dict>
-\t\t\t\t\t\t</dict>
-\t\t\t\t\t\t<key>string</key>
-\t\t\t\t\t\t<string>${esc(target)}</string>
-\t\t\t\t\t</dict>
-\t\t\t\t\t<key>WFSerializationType</key>
-\t\t\t\t\t<string>WFTextTokenString</string>
-\t\t\t\t</dict>
-\t\t\t</dict>
-\t\t</dict>
-\t</array>
-</dict>
-</plist>
-`;
+   To offer a genuine one-tap install instead: build the shortcut once on your
+   own iPhone, Share it to iCloud, and paste the resulting link here. */
+const ICLOUD_SHORTCUT = '';
+
+if (ICLOUD_SHORTCUT) {
+  $('scInstant').href = ICLOUD_SHORTCUT;
+  $('scInstantWrap').hidden = false;
+  $('scBuildHead').textContent = 'iPhone — or build it yourself';
 }
-
-$('scAdd').addEventListener('click', () => {
-  const blob = new Blob([shortcutFile()], { type: 'application/x-plist' });
-  saveBlob(blob, 'Ashgrab.shortcut');
-  toast('Shortcut file ready');
-  tap(18);
-});
-
-$('scManualToggle').addEventListener('click', () => {
-  const box = $('scManual');
-  box.hidden = !box.hidden;
-  $('scManualToggle').textContent = box.hidden
-    ? 'Rather build it by hand? Show the 4 taps →'
-    : 'Hide the manual steps';
-});
 
 /* the big button under the three illustrated steps opens the same sheet */
 $('promoOpen').addEventListener('click', () => {
@@ -1215,4 +1107,4 @@ new MutationObserver(() => {
 }).observe(document.body, { attributes: true, attributeFilter: ['hidden'], subtree: true });
 
 /* hooks for the test suite */
-window.__ashgrab = { cleanUrl, extractUrl, directFile, shortcutFile, shortcutBase };
+window.__ashgrab = { cleanUrl, extractUrl, directFile, shortcutBase };
