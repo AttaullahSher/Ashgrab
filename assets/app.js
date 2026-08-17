@@ -847,7 +847,9 @@ el.sheet.addEventListener('click', (e) => { if (e.target === el.sheet) closeShee
 
 /* shortcut helper screen */
 const shortcutSheet = $('shortcutSheet');
-const shareBase = new URL('.', location.href).href + '?url=';
+/* Reassigned by the shortcut builder below when the mode changes, so the copy
+   button always hands over the address that matches what's on screen. */
+let shareBase = new URL('.', location.href).href + '?url=';
 $('shortcutTemplate').textContent = shareBase;
 $('shortcutBtn').addEventListener('click', () => { shortcutSheet.hidden = false; });
 $('closeShortcut').addEventListener('click', () => { shortcutSheet.hidden = true; });
@@ -921,5 +923,296 @@ const qp = new URLSearchParams(location.search);
 const shared = qp.get('url') || extractUrl(qp.get('text')) || extractUrl(qp.get('title'));
 if (shared) run(shared);
 
+/* ==========================================================================
+ * Interface layer
+ *
+ * Everything below is presentation: the pill controls that stand in front of
+ * the <select> elements, the appearance switch, and the Shortcuts builder.
+ * The selects remain the source of truth, so the engine above is untouched.
+ * ========================================================================== */
+
+/* ------------------------------------------------------------------ haptics */
+
+/* Browsers reject vibration before the page has been touched, so wait for a
+   real gesture rather than letting the console fill with warnings. */
+let gestured = false;
+['pointerdown', 'keydown'].forEach((ev) =>
+  window.addEventListener(ev, () => { gestured = true; }, { once: true, passive: true }));
+
+function tap(ms = 8) {
+  if (!gestured || !navigator.vibrate) return;
+  try { navigator.vibrate(ms); } catch { /* not supported */ }
+}
+
+/* -------------------------------------------------------------------- toast */
+
+function toast(message) {
+  const host = $('toastHost');
+  if (!host) return;
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = message;
+  host.appendChild(t);
+  setTimeout(() => {
+    t.classList.add('out');
+    setTimeout(() => t.remove(), 320);
+  }, 2400);
+}
+
+/* --------------------------------------------------------- segmented control */
+
+/* Slides the white thumb under the selected tab and reports the new value. */
+function initSegment(box, onChange) {
+  if (!box) return { select() {} };
+  const thumb = box.querySelector('.thumb');
+  const tabs = [...box.querySelectorAll('button')];
+
+  function place(animated = true) {
+    const active = tabs.find((t) => t.getAttribute('aria-selected') === 'true') || tabs[0];
+    if (!thumb || !active || !active.offsetWidth) return;
+    if (!animated) thumb.style.transition = 'none';
+    thumb.style.width = active.offsetWidth + 'px';
+    thumb.style.transform = 'translateX(' + (active.offsetLeft - 2) + 'px)';
+    if (!animated) requestAnimationFrame(() => { thumb.style.transition = ''; });
+  }
+
+  tabs.forEach((tab) => tab.addEventListener('click', () => {
+    if (tab.getAttribute('aria-selected') === 'true') return;
+    tabs.forEach((t) => t.setAttribute('aria-selected', String(t === tab)));
+    place();
+    tap();
+    if (onChange) onChange(tab.dataset.value);
+  }));
+
+  const relayout = () => place(false);
+  window.addEventListener('resize', relayout);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(relayout);
+  requestAnimationFrame(relayout);
+
+  return {
+    relayout,
+    select(value) {
+      const target = tabs.find((t) => t.dataset.value === value);
+      if (!target || target.getAttribute('aria-selected') === 'true') return;
+      tabs.forEach((t) => t.setAttribute('aria-selected', String(t === target)));
+      place(false);
+    }
+  };
+}
+
+/* Format and quality drive the hidden selects, so changing either still runs
+   the existing "re-resolve on change" logic. */
+initSegment($('formatSeg'), (value) => {
+  el.format.value = value;
+  el.format.dispatchEvent(new Event('change'));
+  const audio = value === 'audio';
+  $('qualityRow').hidden = audio;
+});
+
+$('qualityChips').addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  [...$('qualityChips').children].forEach((c) =>
+    c.setAttribute('aria-pressed', String(c === chip)));
+  el.quality.value = chip.dataset.value;
+  el.quality.dispatchEvent(new Event('change'));
+  tap();
+});
+
+/* ---------------------------------------------------------------- appearance */
+
+function applyTheme(value) {
+  document.documentElement.setAttribute('data-theme', value);
+  settings.theme = value;
+  saveSettings();
+}
+
+const themeSeg = initSegment($('themeSeg'), (value) => {
+  applyTheme(value);
+  toast(value === 'auto' ? 'Appearance follows your device'
+      : value === 'light' ? 'Light appearance' : 'Dark appearance');
+});
+
+applyTheme(settings.theme || 'auto');
+themeSeg.select(settings.theme || 'auto');
+
+$('themeBtn').addEventListener('click', () => {
+  const order = ['auto', 'light', 'dark'];
+  const next = order[(order.indexOf(settings.theme || 'auto') + 1) % order.length];
+  applyTheme(next);
+  themeSeg.select(next);
+  toast(next === 'auto' ? 'Appearance follows your device'
+      : next === 'light' ? 'Light appearance' : 'Dark appearance');
+  tap();
+});
+
+/* ----------------------------------------------------------- shortcut builder */
+
+const shortcut = { mode: 'ask' };
+
+/* The address the shortcut opens. `url` is last so the shared link is simply
+   appended — which is also what makes the hand-built version a single paste. */
+function shortcutBase() {
+  const root = new URL('.', location.href).href;
+  const parts = [];
+  if (shortcut.mode !== 'ask') parts.push('mode=' + shortcut.mode);
+  parts.push('url=');
+  return root + '?' + parts.join('&');
+}
+
+function renderShortcut() {
+  shareBase = shortcutBase();               // the copy button reads this
+  $('shortcutTemplate').textContent = shareBase;
+}
+
+initSegment($('scModeSeg'), (value) => { shortcut.mode = value; renderShortcut(); });
+renderShortcut();
+
+/* Build a Shortcuts file: URL-encode whatever was shared, then open Ashgrab
+   with it. Registered as an ActionExtension so iOS lists it in the Share Sheet. */
+function shortcutFile() {
+  const OBJ = '￼';                     // the object-replacement character
+  const uuid = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())).toUpperCase();
+  const target = shortcutBase() + OBJ;
+  const index = target.indexOf(OBJ);
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+\t<key>WFWorkflowClientVersion</key>
+\t<string>2038.1.1</string>
+\t<key>WFWorkflowMinimumClientVersion</key>
+\t<integer>900</integer>
+\t<key>WFWorkflowMinimumClientVersionString</key>
+\t<string>900</string>
+\t<key>WFWorkflowHasShortcutInputVariables</key>
+\t<true/>
+\t<key>WFWorkflowIcon</key>
+\t<dict>
+\t\t<key>WFWorkflowIconGlyphNumber</key>
+\t\t<integer>59511</integer>
+\t\t<key>WFWorkflowIconStartColor</key>
+\t\t<integer>946986751</integer>
+\t</dict>
+\t<key>WFWorkflowImportQuestions</key>
+\t<array/>
+\t<key>WFWorkflowTypes</key>
+\t<array>
+\t\t<string>ActionExtension</string>
+\t</array>
+\t<key>WFWorkflowInputContentItemClasses</key>
+\t<array>
+\t\t<string>WFURLContentItem</string>
+\t\t<string>WFStringContentItem</string>
+\t\t<string>WFRichTextContentItem</string>
+\t\t<string>WFSafariWebPageContentItem</string>
+\t</array>
+\t<key>WFWorkflowActions</key>
+\t<array>
+\t\t<dict>
+\t\t\t<key>WFWorkflowActionIdentifier</key>
+\t\t\t<string>is.workflow.actions.urlencode</string>
+\t\t\t<key>WFWorkflowActionParameters</key>
+\t\t\t<dict>
+\t\t\t\t<key>UUID</key>
+\t\t\t\t<string>${uuid}</string>
+\t\t\t\t<key>WFEncodeMode</key>
+\t\t\t\t<string>Encode</string>
+\t\t\t\t<key>WFInput</key>
+\t\t\t\t<dict>
+\t\t\t\t\t<key>Value</key>
+\t\t\t\t\t<dict>
+\t\t\t\t\t\t<key>attachmentsByRange</key>
+\t\t\t\t\t\t<dict>
+\t\t\t\t\t\t\t<key>{0, 1}</key>
+\t\t\t\t\t\t\t<dict>
+\t\t\t\t\t\t\t\t<key>Type</key>
+\t\t\t\t\t\t\t\t<string>ExtensionInput</string>
+\t\t\t\t\t\t\t</dict>
+\t\t\t\t\t\t</dict>
+\t\t\t\t\t\t<key>string</key>
+\t\t\t\t\t\t<string>${OBJ}</string>
+\t\t\t\t\t</dict>
+\t\t\t\t\t<key>WFSerializationType</key>
+\t\t\t\t\t<string>WFTextTokenString</string>
+\t\t\t\t</dict>
+\t\t\t</dict>
+\t\t</dict>
+\t\t<dict>
+\t\t\t<key>WFWorkflowActionIdentifier</key>
+\t\t\t<string>is.workflow.actions.openurl</string>
+\t\t\t<key>WFWorkflowActionParameters</key>
+\t\t\t<dict>
+\t\t\t\t<key>Show-WFInput</key>
+\t\t\t\t<true/>
+\t\t\t\t<key>WFInput</key>
+\t\t\t\t<dict>
+\t\t\t\t\t<key>Value</key>
+\t\t\t\t\t<dict>
+\t\t\t\t\t\t<key>attachmentsByRange</key>
+\t\t\t\t\t\t<dict>
+\t\t\t\t\t\t\t<key>{${index}, 1}</key>
+\t\t\t\t\t\t\t<dict>
+\t\t\t\t\t\t\t\t<key>OutputName</key>
+\t\t\t\t\t\t\t\t<string>URL Encoded Text</string>
+\t\t\t\t\t\t\t\t<key>OutputUUID</key>
+\t\t\t\t\t\t\t\t<string>${uuid}</string>
+\t\t\t\t\t\t\t\t<key>Type</key>
+\t\t\t\t\t\t\t\t<string>ActionOutput</string>
+\t\t\t\t\t\t\t</dict>
+\t\t\t\t\t\t</dict>
+\t\t\t\t\t\t<key>string</key>
+\t\t\t\t\t\t<string>${esc(target)}</string>
+\t\t\t\t\t</dict>
+\t\t\t\t\t<key>WFSerializationType</key>
+\t\t\t\t\t<string>WFTextTokenString</string>
+\t\t\t\t</dict>
+\t\t\t</dict>
+\t\t</dict>
+\t</array>
+</dict>
+</plist>
+`;
+}
+
+$('scAdd').addEventListener('click', () => {
+  const blob = new Blob([shortcutFile()], { type: 'application/x-plist' });
+  saveBlob(blob, 'Ashgrab.shortcut');
+  toast('Shortcut file ready');
+  tap(18);
+});
+
+$('scManualToggle').addEventListener('click', () => {
+  const box = $('scManual');
+  box.hidden = !box.hidden;
+  $('scManualToggle').textContent = box.hidden
+    ? 'Rather build it by hand? Show the 4 taps →'
+    : 'Hide the manual steps';
+});
+
+/* the big button under the three illustrated steps opens the same sheet */
+$('promoOpen').addEventListener('click', () => {
+  shortcutSheet.hidden = false;
+  tap();
+});
+
+/* Segmented controls inside a sheet have no width until the sheet is shown,
+   so re-measure the thumb whenever one opens. */
+new MutationObserver(() => {
+  if (!shortcutSheet.hidden || !el.sheet.hidden) {
+    document.querySelectorAll('.sheet .seg').forEach((box) => {
+      const thumb = box.querySelector('.thumb');
+      const active = box.querySelector('button[aria-selected="true"]');
+      if (!thumb || !active || !active.offsetWidth) return;
+      thumb.style.transition = 'none';
+      thumb.style.width = active.offsetWidth + 'px';
+      thumb.style.transform = 'translateX(' + (active.offsetLeft - 2) + 'px)';
+      requestAnimationFrame(() => { thumb.style.transition = ''; });
+    });
+  }
+}).observe(document.body, { attributes: true, attributeFilter: ['hidden'], subtree: true });
+
 /* hooks for the test suite */
-window.__ashgrab = { cleanUrl, extractUrl, directFile };
+window.__ashgrab = { cleanUrl, extractUrl, directFile, shortcutFile, shortcutBase };
