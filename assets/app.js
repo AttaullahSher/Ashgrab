@@ -589,10 +589,13 @@ async function grabAndSave() {
   showError(
     '<b>The video came back empty every time.</b>' +
     (isYT
-      ? '<p>YouTube blocks most of the free helpers, so this happens a lot. Things that usually work:</p>' +
-        '<ul><li>Pick <b>720p</b> or lower and try again</li>' +
-        '<li>Switch to <b>Music · MP3</b> if the sound is what you want</li>' +
-        '<li>The sure fix: your own helper server — it\'s never blocked. See <b>Settings → Run your own</b>.</li></ul>'
+      ? '<p>YouTube is blocking the free helper for this particular video — it accepts the ' +
+        'request, then sends nothing back, on every route. Lower quality was already tried ' +
+        'automatically; it can\'t fix this kind of block.</p>' +
+        '<ul><li>Blocks come and go — the same link often works an hour or two later</li>' +
+        '<li>Older or less-viral videos usually still work right now</li>' +
+        '<li>The real fix: your own helper server, which YouTube treats far better. ' +
+        'See <b>Settings → Run your own</b> — it\'s one command.</li></ul>'
       : '<p>This one seems blocked for the free helpers right now. It usually clears up — try again in a few minutes.</p>') +
     '<p><button id="retryBtn" class="ghost" type="button">Try again</button></p>'
   );
