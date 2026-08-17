@@ -553,6 +553,7 @@ function browserDownload(fileUrl, filename, isAudio) {
 async function grabAndSave() {
   const opts = { quality: el.quality.value, audioOnly: el.format.value === 'audio' };
   const duds = new Set();
+  const LOWER = { max: '1080', 1080: '720', 720: '480', 480: '360', 360: '240' };
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -570,6 +571,12 @@ async function grabAndSave() {
       if (!current.serverUrl) break;            // direct link: nothing to switch to
       duds.add(current.serverUrl);
       status('That copy was empty — trying another helper…');
+      // second empty in a row: the quality itself is probably the blocked
+      // path, so step down a notch as well as switching to the relay
+      if (attempt >= 1 && !opts.audioOnly && LOWER[opts.quality]) {
+        opts.quality = LOWER[opts.quality];
+        log('try', 'stepping down to ' + opts.quality + 'p for a fresh copy');
+      }
       try {
         current = await resolve(el.url.value.trim(), { ...opts, preferProxy: true }, duds);
       } catch { break; }

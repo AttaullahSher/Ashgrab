@@ -95,8 +95,18 @@ tried and why it failed.
 ## Run your own server (recommended)
 
 Public servers are free, shared, and rate-limited — they will fail sometimes, and YouTube
-in particular is blocked on many of them. Your own instance is unlimited, private, and
-fast. Any small VPS with Docker:
+in particular is blocked on many of them. (A live capability test on 2026-08-17 found
+exactly **one** public helper actually delivering YouTube bytes; the rest were dead,
+bot-walled, or require a key.) Your own instance is unlimited, private, and fast.
+
+One command on any Ubuntu VPS — including an Oracle Cloud Always Free ARM machine:
+
+```bash
+sudo bash selfhost/setup-cobalt.sh dl.yourdomain.com you@example.com
+```
+
+It installs Docker + cobalt + Caddy (automatic HTTPS) and prints the address to paste
+into **Settings → Your own server**. Or by hand:
 
 ```bash
 docker run -d --name cobalt \
