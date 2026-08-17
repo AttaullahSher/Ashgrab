@@ -78,12 +78,13 @@ tried and why it failed.
   **share sheet**: share a video from any app straight into it. Works offline as a shell.
 - **iPhone share sheet** — iOS has no PWA share target, so Ashgrab walks you through
   building a Shortcut: pick what it should grab, tap **Copy my link**, then follow five
-  steps in the Shortcuts app. Apple refuses to import unsigned `.shortcut` files
-  (*"Importing unsigned shortcut files is not supported"*) and the **Allow Untrusted
-  Shortcuts** switch does not change that — it only governs links Apple has signed. To
-  offer a true one-tap install, build it once on your own iPhone, share it to iCloud, and
-  paste the link into `ICLOUD_SHORTCUT` at the bottom of `assets/app.js`; the one-tap
-  button then appears by itself.
+  steps in the Shortcuts app. Apple refuses to import unsigned `.shortcut` files, and
+  every signing route needs an Apple account — `shortcuts sign` refuses on a Mac that
+  isn't signed into iCloud (verified on a CI runner), so the repo cannot sign its own.
+  The one sanctioned route to one-tap install, the same one every shortcut-sharing site
+  uses: build it once on a real iPhone, **Share → Copy iCloud Link** (Apple signs it at
+  that moment), and paste the link into `ICLOUD_SHORTCUT` at the bottom of
+  `assets/app.js`. The one-tap button then appears by itself.
 - **Light and dark** — follows the system, or pin it in Settings
 - **`?url=` / `?text=` parameters** → `https://attaullahsher.github.io/Ashgrab/?url=<link>`
   resolves immediately (bookmarklets, share targets)
