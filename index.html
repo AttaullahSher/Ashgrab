@@ -263,9 +263,28 @@
       <button id="closeShortcut" class="icon-btn" aria-label="Close">✕</button>
     </div>
 
+    <!-- One-tap install, shown only when a signed iCloud link has been published.
+         Apple will not import an unsigned shortcut file, so a link it has signed
+         is the only way to skip the build below. -->
+    <section class="info-section" id="scInstantWrap" hidden>
+      <h3>iPhone — one tap</h3>
+      <p>Tap below, then <b>Add Shortcut</b>. That's it.</p>
+      <div class="btn-row">
+        <a id="scInstant" class="dl" href="#" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="11" height="11" rx="3.4"/><rect x="10" y="10" width="11" height="11" rx="3.4"/>
+          </svg>
+          Add the Ashgrab shortcut
+        </a>
+      </div>
+    </section>
+
     <section class="info-section">
-      <h3>iPhone — add it to your Share menu</h3>
-      <p>Pick what your shortcut should do, then add it. One tap, one time.</p>
+      <h3 id="scBuildHead">iPhone — add it to your Share menu</h3>
+      <p>Apple only installs shortcuts from links it has signed itself, so this is a guided
+         build instead. It takes about a minute, and you only ever do it once.</p>
+
+      <p>First, pick what your shortcut should do:</p>
 
       <div class="seg" id="scModeSeg" role="tablist" aria-label="Shortcut behaviour">
         <span class="thumb" aria-hidden="true"></span>
@@ -276,30 +295,28 @@
 
       <div class="copy-row">
         <code id="shortcutTemplate">…</code>
-        <button id="copyTemplate" class="go sm" type="button">Copy</button>
       </div>
 
       <div class="btn-row">
-        <button id="scAdd" class="dl" type="button">
-          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="3" width="11" height="11" rx="3.4"/><rect x="10" y="10" width="11" height="11" rx="3.4"/>
+        <button id="copyTemplate" class="dl" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linejoin="round">
+            <rect x="9" y="9" width="12" height="12" rx="3"/>
+            <path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1"/>
           </svg>
-          <span id="scAddLabel">Get the Shortcut file</span>
+          <span id="copyLabel">Copy my link</span>
         </button>
+        <a id="scOpen" class="dl quiet" href="shortcuts://create-shortcut">Open Shortcuts</a>
       </div>
 
-      <p class="note" id="scNote">Your iPhone will ask you to confirm a shortcut it didn't get from Apple —
-        that's normal. If it refuses outright, open <b>Settings → Shortcuts</b> and turn on
-        <b>Allow Untrusted Shortcuts</b> (that switch only appears once you've run a shortcut at least once).</p>
-
-      <button type="button" id="scManualToggle" class="linkish">Rather build it by hand? Show the 4 taps →</button>
-
-      <ol class="steps" id="scManual" hidden>
-        <li>Open <b>Shortcuts</b> and tap <b>+</b> to make a new shortcut.</li>
+      <ol class="steps">
+        <li>In <b>Shortcuts</b>, tap <b>+</b> to start a new one.</li>
         <li>Tap the <b>ⓘ</b> at the bottom and switch on <b>Show in Share Sheet</b>.</li>
-        <li>Add the action <b>Open URLs</b>. Tap its web address field, paste the link above,
-            then — right after it — pick <b>Shortcut Input</b> from the blue suggestions.</li>
-        <li>Name it <b>Ashgrab</b> and tap <b>Done</b>.</li>
+        <li>Search for <b>Open URLs</b> and add it. Tap its web address field and
+            <b>paste</b> — the link is already on your clipboard.</li>
+        <li>Tap right after the pasted link and pick <b>Shortcut Input</b> from the blue
+            suggestions above the keyboard, so it sits at the very end.</li>
+        <li>Name it <b>Ashgrab</b>, tap <b>Done</b>.</li>
       </ol>
 
       <p>From then on: watching a video anywhere → tap <b>Share</b> → <b>Ashgrab</b>. Done.</p>
