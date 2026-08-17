@@ -209,6 +209,9 @@ svg.defs { position: absolute; width: 0; height: 0; }
   transition: transform .22s var(--spring), background .2s;
 }
 .ghost:active { transform: scale(.94); }
+a.ghost { display: inline-flex; align-items: center; text-decoration: none; }
+a.ghost:hover { text-decoration: none; }
+.error .ghost + .ghost, .error a.ghost { margin-left: 8px; }
 .ghost.sm { height: 32px; padding: 0 12px; font-size: 14px; border-radius: 10px; }
 .ghost.wide { width: 100%; margin-top: 8px; background: var(--fill); color: var(--red);
   box-shadow: none; height: 48px; border-radius: 15px; }

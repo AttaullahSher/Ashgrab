@@ -581,12 +581,30 @@ async function grabAndSave() {
   const isYT = platformOf(el.url.value.trim()) === 'youtube';
   showError(
     '<b>Can\'t download this one.</b>' +
-    (isYT ? '<p>YouTube is blocking it right now. The same link often works later.</p>'
-          : '<p>Try again in a few minutes.</p>') +
-    '<p><button id="retryBtn" class="ghost" type="button">Try again</button></p>'
+    (isYT ? '<p>YouTube is blocking the free helper for this video.</p>'
+          : '<p>The free helpers can\'t open this one right now.</p>') +
+    '<p><button id="retryBtn" class="ghost" type="button">Try again</button> ' +
+    '<a id="altBtn" class="ghost" href="https://cobalt.tools/" target="_blank" rel="noopener">Open cobalt.tools</a></p>'
   );
+  wireFallback();
+}
+
+/* Never leave someone staring at a dead end. cobalt.tools runs the same
+   engine but as a full site, so it can put YouTube's bot check in front of a
+   human — which is exactly what a static page like this one cannot do. The
+   link goes to the clipboard so it is one paste away when the tab opens. */
+function wireFallback(onRetry) {
   const rb = $('retryBtn');
-  if (rb) rb.onclick = () => run(el.url.value.trim());
+  if (rb) rb.onclick = onRetry || (() => run(el.url.value.trim()));
+  const ab = $('altBtn');
+  if (!ab) return;
+  // the anchor opens the tab itself; this only puts the link on the clipboard
+  ab.onclick = () => {
+    const link = el.url.value.trim();
+    if (link && navigator.clipboard) {
+      navigator.clipboard.writeText(link).catch(() => {});
+    }
+  };
 }
 
 /* Picker items download directly; an empty one just reports, never saves. */
@@ -675,14 +693,14 @@ async function run(rawUrl) {
     showError(
       '<b>Can\'t download this one.</b>' +
       '<p>Check the link opens normally — private and deleted posts can\'t be saved.</p>' +
-      '<p><button id="retryBtn" class="ghost" type="button">Try again</button></p>'
+      '<p><button id="retryBtn" class="ghost" type="button">Try again</button> ' +
+      '<a id="altBtn" class="ghost" href="https://cobalt.tools/" target="_blank" rel="noopener">Open cobalt.tools</a></p>'
     );
-    const rb = $('retryBtn');
-    if (rb) rb.onclick = () => {
+    wireFallback(() => {
       servers.forEach((s) => { if (s.state === 'down') s.state = 'unknown'; });
       probeAll();
       run(url);
-    };
+    });
   }
 }
 
