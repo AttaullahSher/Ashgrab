@@ -1084,12 +1084,6 @@ if (ICLOUD_SHORTCUT) {
   $('scBuildHead').textContent = 'iPhone — or build it yourself';
 }
 
-/* the big button under the three illustrated steps opens the same sheet */
-$('promoOpen').addEventListener('click', () => {
-  shortcutSheet.hidden = false;
-  tap();
-});
-
 /* Segmented controls inside a sheet have no width until the sheet is shown,
    so re-measure the thumb whenever one opens. */
 new MutationObserver(() => {
