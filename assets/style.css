@@ -161,6 +161,17 @@ svg.defs { position: absolute; width: 0; height: 0; }
 .icon-btn:hover { background: var(--fill-2); color: var(--label); }
 .icon-btn:active { transform: scale(.9); }
 
+/* The Shortcuts entry point, styled as a little app tile — a rounded square
+   with the interlocking glyph, in Ashgrab's own gradient. */
+.icon-btn.sc-btn {
+  border-radius: 10px;
+  background: var(--grad);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(122,90,248,.34);
+}
+.icon-btn.sc-btn:hover { background: var(--grad); color: #fff; filter: brightness(1.07); }
+.icon-btn.sc-btn svg { width: 20px; height: 20px; }
+
 /* -------------------------------------------------------------------- hero */
 
 .hero { text-align: center; padding: 18px 0 22px; }
