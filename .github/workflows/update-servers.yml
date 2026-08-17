@@ -1,0 +1,44 @@
+name: Refresh server list
+
+# Keeps Ashgrab alive long-term: public cobalt instances come and go, so once
+# a week this pulls the community instance tracker, rewrites assets/servers.json
+# with the healthiest CORS-open servers, and redeploys the site. The weekly
+# commit also keeps GitHub from pausing this schedule for repo inactivity.
+
+on:
+  schedule:
+    - cron: '17 4 * * 1' # Mondays 04:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: refresh-servers
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Refresh assets/servers.json from the instance tracker
+        run: node scripts/update-servers.mjs
+
+      - name: Commit and redeploy if the list changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet assets/servers.json; then
+            echo "server list unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/servers.json
+          git commit -m "Refresh cobalt server list (automated weekly check)"
+          git push
+          # pushes made with GITHUB_TOKEN don't trigger the pages workflow — dispatch it
+          gh workflow run pages.yml --ref "${GITHUB_REF_NAME}"

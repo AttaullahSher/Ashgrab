@@ -4,9 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
-<title>Snagr — paste a link, get the video</title>
-<meta name="description" content="Paste any video link. Snagr finds it, previews it, and downloads it. YouTube, Instagram, TikTok, Facebook, X, Reddit and more.">
+<title>Ashgrab — paste a link, grab the video</title>
+<meta name="description" content="Paste any video link. Ashgrab finds it, previews it, and downloads it. YouTube, Instagram, TikTok, Facebook, X, Reddit and more.">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -16,14 +20,14 @@
   <header class="head">
     <div class="logo">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4.2-4.2M12 14 7.8 9.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16.5V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2.5" stroke-linecap="round"/></svg>
-      <h1>Snagr</h1>
+      <h1>Ashgrab</h1>
     </div>
     <button id="settingsBtn" class="icon-btn" title="Settings" aria-label="Settings">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-3-1.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9h-.2a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.2 6.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2v-.2a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 3 1.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
     </button>
   </header>
 
-  <p class="tag">Paste a link. Get the video.</p>
+  <p class="tag">Paste a link. Grab the video.</p>
 
   <form id="form" class="bar" autocomplete="off">
     <input id="url" type="url" inputmode="url" placeholder="Paste video link…" spellcheck="false" required>
@@ -32,6 +36,8 @@
   </form>
 
   <p class="hint">YouTube · Instagram · TikTok · Facebook · X · Reddit · Threads · Snapchat · Vimeo · Twitch · Pinterest · Bluesky · SoundCloud · and more</p>
+
+  <div id="recent" class="recent" hidden></div>
 
   <!-- result card -->
   <section id="card" class="card" hidden>
@@ -73,14 +79,15 @@
   <div id="error" class="error" hidden></div>
 
   <footer class="foot">
-    <p>No account, no tracking, nothing stored. Snagr runs in your browser and asks a
+    <p>No account, no tracking, nothing stored. Ashgrab runs in your browser and asks a
        <a href="https://github.com/imputnet/cobalt" target="_blank" rel="noopener">cobalt</a> server to fetch the file.
-       If a link fails, it automatically retries with different settings and different servers.</p>
+       If a link fails, it automatically retries with different settings and different servers.
+       On a phone, add it to your home screen and it shows up in the share sheet — share any video straight into it.</p>
     <p>Public servers get rate-limited and go down.
        <a href="#" id="selfhostLink">Run your own in 2 minutes</a> for links that always work —
        then paste its address in <a href="#" id="settingsLink">settings</a>.</p>
     <p class="fine">Download only what you have the right to download. Respect each platform's terms and the creator's copyright.</p>
-    <p class="fine">Built by Asher · <a href="https://github.com/AttaullahSher/NFCscan" target="_blank" rel="noopener">source</a></p>
+    <p class="fine">Built by Asher · <a href="https://github.com/AttaullahSher/Ashgrab" target="_blank" rel="noopener">source</a></p>
   </footer>
 </main>
 

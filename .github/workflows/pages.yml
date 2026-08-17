@@ -1,4 +1,4 @@
-name: Deploy Snagr to GitHub Pages
+name: Deploy Ashgrab to GitHub Pages
 
 on:
   push:
