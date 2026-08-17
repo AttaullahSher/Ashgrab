@@ -423,16 +423,16 @@
     </div>
 
     <div class="selfhost">
-      <h3>Run your own</h3>
-      <p>Reliable, unlimited, private. Needs any small VPS with Docker:</p>
-<pre><code>docker run -d --name cobalt \
-  -p 9000:9000 \
-  -e API_URL="https://cobalt.yourdomain.com/" \
-  --restart unless-stopped \
-  ghcr.io/imputnet/cobalt:11</code></pre>
-      <p>Put it behind HTTPS, then paste the address above. Full guide:
-        <a href="https://github.com/imputnet/cobalt/blob/main/docs/run-an-instance.md" target="_blank" rel="noopener">run-an-instance.md</a>
-      </p>
+      <h3>Downloads keep failing?</h3>
+      <p>YouTube blocks the free shared engines. Give Ashgrab an engine of its
+         own — free, about five minutes, and no terminal: you click buttons on
+         a website and paste the address back here.</p>
+      <div class="btn-row">
+        <a class="dl" href="https://github.com/AttaullahSher/Ashgrab/blob/master/selfhost/README.md"
+           target="_blank" rel="noopener">Show me how</a>
+      </div>
+      <p class="note">Everything else — TikTok, Instagram, X, Reddit — works
+         fine without this. It is YouTube specifically that fights back.</p>
     </div>
 
     <button id="resetBtn" class="ghost wide">Reset settings</button>

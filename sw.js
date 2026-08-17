@@ -1,7 +1,7 @@
 /* Ashgrab service worker: network-first with cache fallback.
    Fresh code always wins when online; the app still opens offline. */
 
-const CACHE = 'ashgrab-v8';
+const CACHE = 'ashgrab-v9';
 const SHELL = [
   './', './index.html', './manifest.json',
   './assets/style.css', './assets/app.js', './assets/servers.json',

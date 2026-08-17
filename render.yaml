@@ -1,0 +1,30 @@
+# One-click private download engine for Ashgrab.
+#
+# Render reads this file when you click "Deploy to Render" and builds the
+# whole thing for you — no terminal, no SSH, no server to manage. It runs the
+# same cobalt engine the public helpers run, except this one is yours alone,
+# so nothing is shared, rate-limited, or queued behind other people.
+#
+# After it deploys, Render shows a web address ending in .onrender.com.
+# Paste that into Ashgrab -> Settings -> "Your own server".
+
+services:
+  - type: web
+    name: ashgrab-engine
+    runtime: image
+    image:
+      url: ghcr.io/imputnet/cobalt:11
+    plan: free
+    region: frankfurt
+    envVars:
+      # Render routes public traffic to port 10000 by default.
+      - key: API_PORT
+        value: "10000"
+      # cobalt signs its download links with this, so it has to match the
+      # address Render gives the service. If Render appends something to the
+      # name, edit this value in the dashboard afterwards and save.
+      - key: API_URL
+        value: https://ashgrab-engine.onrender.com/
+      # Be generous: this instance serves one household, not the internet.
+      - key: API_RATE_LIMIT
+        value: "200"
