@@ -1,0 +1,54 @@
+name: Sign the iPhone shortcut
+
+# iOS only imports shortcuts that Apple's own tooling has signed. The
+# `shortcuts` command line ships with macOS, so a macOS runner can do the
+# signing: build the plist, sign it for anyone, commit the signed file.
+# The "Add the Ashgrab shortcut" button on the site links to that file and
+# appears automatically once it exists.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths: ['scripts/build-shortcut.mjs']
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: sign-shortcut
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the unsigned shortcut
+        run: node scripts/build-shortcut.mjs /tmp/Ashgrab-unsigned.shortcut
+
+      - name: Sign it so iPhones will import it
+        run: |
+          shortcuts sign --mode anyone \
+            --input /tmp/Ashgrab-unsigned.shortcut \
+            --output assets/Ashgrab.shortcut
+          ls -la assets/Ashgrab.shortcut
+          file assets/Ashgrab.shortcut
+
+      - name: Commit and redeploy if it changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$(git status --porcelain assets/Ashgrab.shortcut)" ]; then
+            echo "signed shortcut unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/Ashgrab.shortcut
+          git commit -m "Sign the Ashgrab shortcut (automated)"
+          git push
+          # pushes made with GITHUB_TOKEN don't trigger the pages workflow — dispatch it
+          gh workflow run pages.yml --ref "${GITHUB_REF_NAME}"

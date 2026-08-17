@@ -332,6 +332,11 @@ function strategies(url, opts) {
   if (settings.alwaysProxy) {
     list.unshift({ name: 'relay route (your setting)', body: { ...base, videoQuality: q, youtubeVideoCodec: 'h264', alwaysProxy: true } });
   }
+  /* Retrying after an empty file: a dead direct link usually means the bytes
+     must be carried by the server itself, so lead with the relay route. */
+  if (opts.preferProxy) {
+    list.unshift({ name: 'relay route (fresh copy)', body: { ...base, videoQuality: q, youtubeVideoCodec: 'h264', alwaysProxy: true } });
+  }
   if (!opts.audioOnly) {
     // absolute last resort: at least get the audio out of it
     list.push({ name: 'audio only', body: { ...base, downloadMode: 'audio', videoQuality: lower }, rescue: true });
@@ -566,16 +571,22 @@ async function grabAndSave() {
       duds.add(current.serverUrl);
       status('That copy was empty — trying another helper…');
       try {
-        current = await resolve(el.url.value.trim(), opts, duds);
+        current = await resolve(el.url.value.trim(), { ...opts, preferProxy: true }, duds);
       } catch { break; }
     }
   }
 
   status("Couldn't get a working copy", 'fail');
   el.progress.hidden = true;
+  const isYT = platformOf(el.url.value.trim()) === 'youtube';
   showError(
     '<b>The video came back empty every time.</b>' +
-    '<p>This one seems blocked for the free helpers right now. It usually clears up — try again in a few minutes.</p>' +
+    (isYT
+      ? '<p>YouTube blocks most of the free helpers, so this happens a lot. Things that usually work:</p>' +
+        '<ul><li>Pick <b>720p</b> or lower and try again</li>' +
+        '<li>Switch to <b>Music · MP3</b> if the sound is what you want</li>' +
+        '<li>The sure fix: your own helper server — it\'s never blocked. See <b>Settings → Run your own</b>.</li></ul>'
+      : '<p>This one seems blocked for the free helpers right now. It usually clears up — try again in a few minutes.</p>') +
     '<p><button id="retryBtn" class="ghost" type="button">Try again</button></p>'
   );
   const rb = $('retryBtn');
@@ -1069,20 +1080,53 @@ function renderShortcut() {
 initSegment($('scModeSeg'), (value) => { shortcut.mode = value; renderShortcut(); });
 renderShortcut();
 
-/* Apple refuses to import an unsigned shortcut file ("Importing unsigned
-   shortcut files is not supported"), and the Allow Untrusted Shortcuts switch
-   does not change that — it only governs signed links. So the guided build is
-   the real path, and the copy button is the thing that makes it painless.
-
-   To offer a genuine one-tap install instead: build the shortcut once on your
-   own iPhone, Share it to iCloud, and paste the resulting link here. */
+/* iOS only imports shortcuts Apple's tooling has signed. Two routes provide
+   one: the sign-shortcut workflow signs assets/Ashgrab.shortcut on a macOS
+   runner (checked for below), or a shortcut shared to iCloud from a real
+   iPhone can be pasted here and takes precedence. The guided build stays as
+   the fallback for the day neither exists. */
 const ICLOUD_SHORTCUT = '';
 
-if (ICLOUD_SHORTCUT) {
-  $('scInstant').href = ICLOUD_SHORTCUT;
-  $('scInstantWrap').hidden = false;
-  $('scBuildHead').textContent = 'iPhone — or build it yourself';
-}
+(async function enableInstantInstall() {
+  const show = (href) => {
+    $('scInstant').href = href;
+    $('scInstantWrap').hidden = false;
+    $('scBuildHead').textContent = 'iPhone — or build it yourself';
+  };
+
+  if (ICLOUD_SHORTCUT) { show(ICLOUD_SHORTCUT); return; }
+
+  try {
+    const r = await fetch('assets/Ashgrab.shortcut', { method: 'HEAD', cache: 'no-cache' });
+    if (!r.ok) return; // not signed and published yet — the guide carries it
+    const fileUrl = new URL('assets/Ashgrab.shortcut', location.href).href;
+    // hand the file straight to the Shortcuts app; the plain link is the backup
+    show('shortcuts://import-shortcut/?' + new URLSearchParams({ url: fileUrl, name: 'Ashgrab' }));
+    const alt = $('scInstantAlt');
+    alt.href = fileUrl;
+    alt.hidden = false;
+  } catch { /* offline — the guide still works */ }
+})();
+
+/* Android and desktop can install the app properly; the browser tells us when. */
+let installPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installPrompt = e;
+  const wrap = $('installWrap');
+  if (wrap) wrap.hidden = false;
+});
+const installBtn = $('installBtn');
+if (installBtn) installBtn.addEventListener('click', async () => {
+  if (!installPrompt) return;
+  installPrompt.prompt();
+  const choice = await installPrompt.userChoice.catch(() => null);
+  installPrompt = null;
+  if (choice && choice.outcome === 'accepted') {
+    $('installWrap').hidden = true;
+    toast('Installed — it\'s on your home screen');
+  }
+});
 
 /* Segmented controls inside a sheet have no width until the sheet is shown,
    so re-measure the thumb whenever one opens. */
