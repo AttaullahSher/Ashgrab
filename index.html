@@ -49,14 +49,17 @@
       <p class="title" id="title">Loading…</p>
       <p class="sub"><span class="badge" id="source">link</span> <span id="fileinfo"></span></p>
       <div class="row">
+        <select id="format" aria-label="Format">
+          <option value="video" selected>Video · MP4</option>
+          <option value="audio">Audio · MP3</option>
+        </select>
         <select id="quality" aria-label="Quality">
-          <option value="max">Best quality</option>
+          <option value="max">Best</option>
           <option value="1080" selected>1080p</option>
           <option value="720">720p</option>
           <option value="480">480p</option>
           <option value="360">360p</option>
         </select>
-        <label class="chk"><input type="checkbox" id="audioOnly"> Audio only (mp3)</label>
       </div>
       <button id="dlBtn" class="dl" disabled>Download</button>
       <div class="progress" id="progress" hidden><div class="bar-fill" id="progressFill"></div><span id="progressTxt">0%</span></div>

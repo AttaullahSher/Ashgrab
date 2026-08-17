@@ -29,7 +29,7 @@ const $ = (id) => document.getElementById(id);
 const el = {
   form: $('form'), url: $('url'), paste: $('pasteBtn'), go: $('goBtn'),
   card: $('card'), thumb: $('thumb'), title: $('title'), source: $('source'),
-  fileinfo: $('fileinfo'), quality: $('quality'), audioOnly: $('audioOnly'),
+  fileinfo: $('fileinfo'), quality: $('quality'), format: $('format'),
   dl: $('dlBtn'), progress: $('progress'), progressFill: $('progressFill'),
   progressTxt: $('progressTxt'),
   picker: $('picker'), pickerGrid: $('pickerGrid'), recent: $('recent'),
@@ -77,6 +77,8 @@ function clearAll() {
   el.picker.hidden = true;
   el.pickerGrid.innerHTML = '';
   el.log.innerHTML = '';
+  el.log.hidden = true;
+  el.logToggle.setAttribute('aria-expanded', 'false');
   el.progress.hidden = true;
   el.progressFill.style.width = '0%';
   el.dl.disabled = true;
@@ -234,7 +236,7 @@ async function loadServersInner() {
     if (Array.isArray(d.servers) && d.servers.length) list = d.servers;
   } catch { /* bundled fallback */ }
 
-  servers = list.map((s) => ({ url: normalize(s.url), label: s.label || hostOf(s.url), state: 'unknown', ms: null }));
+  servers = list.map((s, i) => ({ url: normalize(s.url), label: s.label || hostOf(s.url), nick: 'helper ' + (i + 1), state: 'unknown', ms: null }));
   applyCustom();
   renderServers();
   await probeAll();
@@ -247,7 +249,7 @@ function applyCustom() {
   if (settings.custom.trim()) {
     servers.unshift({
       url: normalize(settings.custom.trim()),
-      label: 'yours', state: 'unknown', ms: null, custom: true
+      label: 'yours', nick: 'your server', state: 'unknown', ms: null, custom: true
     });
   }
 }
@@ -320,19 +322,19 @@ function strategies(url, opts) {
   };
 
   const list = [
-    { name: 'standard', body: { ...base, videoQuality: q, youtubeVideoCodec: 'h264' } },
-    { name: 'proxied',  body: { ...base, videoQuality: q, youtubeVideoCodec: 'h264', alwaysProxy: true } },
-    { name: `lower quality (${lower}p)`, body: { ...base, videoQuality: lower, youtubeVideoCodec: 'h264' } },
-    { name: 'vp9 / hls path', body: { ...base, videoQuality: q, youtubeVideoCodec: 'vp9', youtubeHLS: true } },
-    { name: 'legacy api', body: { url, vQuality: q === 'max' ? 'max' : q, isAudioOnly: !!opts.audioOnly, aFormat: 'mp3', filenamePattern: 'pretty' }, legacy: true }
+    { name: 'normal route', body: { ...base, videoQuality: q, youtubeVideoCodec: 'h264' } },
+    { name: 'relay route',  body: { ...base, videoQuality: q, youtubeVideoCodec: 'h264', alwaysProxy: true } },
+    { name: `smaller size (${lower}p)`, body: { ...base, videoQuality: lower, youtubeVideoCodec: 'h264' } },
+    { name: 'backup route', body: { ...base, videoQuality: q, youtubeVideoCodec: 'vp9', youtubeHLS: true } },
+    { name: 'older route', body: { url, vQuality: q === 'max' ? 'max' : q, isAudioOnly: !!opts.audioOnly, aFormat: 'mp3', filenamePattern: 'pretty' }, legacy: true }
   ];
 
   if (settings.alwaysProxy) {
-    list.unshift({ name: 'proxied (your setting)', body: { ...base, videoQuality: q, youtubeVideoCodec: 'h264', alwaysProxy: true } });
+    list.unshift({ name: 'relay route (your setting)', body: { ...base, videoQuality: q, youtubeVideoCodec: 'h264', alwaysProxy: true } });
   }
   if (!opts.audioOnly) {
     // absolute last resort: at least get the audio out of it
-    list.push({ name: 'audio only rescue', body: { ...base, downloadMode: 'audio', videoQuality: lower }, rescue: true });
+    list.push({ name: 'audio only', body: { ...base, downloadMode: 'audio', videoQuality: lower }, rescue: true });
   }
   return list;
 }
@@ -373,11 +375,23 @@ async function askServer(server, strat) {
   throw new Error('unexpected reply: ' + JSON.stringify(st));
 }
 
-/* Walk servers × strategies until something returns a file. */
-async function resolve(url, opts) {
-  if (!servers.length) servers = FALLBACK_SERVERS.map((s) => ({ ...s, state: 'unknown', ms: null }));
+/* What went wrong, in plain words — the raw code still drives the logic. */
+function friendly(msg) {
+  if (AUTH_FAIL.test(msg)) return 'needs a pass';
+  if (RATE_FAIL.test(msg)) return 'too busy right now';
+  if (/timed out|abort/i.test(msg)) return 'took too long';
+  if (HARD_FAIL.test(msg)) return "can't open this link";
+  return "didn't work";
+}
+
+/* Walk servers × strategies until something returns a file.
+   dudServers: servers that resolved fine but streamed an empty file — skip them. */
+async function resolve(url, opts, dudServers = new Set()) {
+  if (!servers.length) servers = FALLBACK_SERVERS.map((s, i) => ({ ...s, nick: 'helper ' + (i + 1), state: 'unknown', ms: null }));
   const usable = servers.filter((s) => s.state !== 'down');
-  const pool = usable.length ? usable : servers;
+  let pool = usable.length ? usable : servers;
+  const nonDud = pool.filter((s) => !dudServers.has(s.url));
+  if (nonDud.length) pool = nonDud;
   // your own server first, then whichever public one delivered last time
   pool.sort((a, b) => {
     if (!!a.custom !== !!b.custom) return a.custom ? -1 : 1;
@@ -391,6 +405,7 @@ async function resolve(url, opts) {
   const mark = (s, p) => tried.add(s.url + '|' + p.name);
   const won = (s, res, rescue) => {
     res.audioOnly = !!opts.audioOnly || !!rescue;
+    res.serverUrl = s.url;
     settings.lastGood = s.url; saveSettings();
     return res;
   };
@@ -399,26 +414,26 @@ async function resolve(url, opts) {
   const racers = pool.filter((s) => s.state === 'up').slice(0, 2);
   if (racers.length === 2) {
     const strat = plan[0];
-    status(`Racing ${racers[0].label} vs ${racers[1].label}…`);
-    log('try', `racing ${racers[0].label} vs ${racers[1].label} · ${strat.name}`);
+    status('Finding the fastest helper…');
+    log('try', `racing ${racers[0].nick} vs ${racers[1].nick} · ${strat.name}`);
     try {
       const win = await Promise.any(racers.map((s) =>
         askServer(s, strat)
           .then((r) => ({ r, s }))
-          .catch((e) => { log('fail', `${s.label}: ${e.code || e.message}`); throw e; })
+          .catch((e) => { log('fail', `${s.nick}: ${friendly(e.code || e.message)}`); throw e; })
       ));
-      log('ok', `${win.s.label} won the race`);
+      log('ok', `${win.s.nick} won the race`);
       return won(win.s, win.r);
     } catch {
       racers.forEach((s) => mark(s, strat));
-      log('try', 'both racers failed — walking the full grid');
+      log('try', 'both were slow — trying every route');
     }
   }
 
   for (const server of pool) {
     if (server.state === 'key' && !settings.key) {
-      log('fail', `${server.label}: needs an api key — skipped`);
-      skipped.push(server.label);
+      log('fail', `${server.nick}: needs a pass — skipped`);
+      skipped.push(server.nick);
       continue;
     }
     for (const strat of plan) {
@@ -426,16 +441,16 @@ async function resolve(url, opts) {
       if (strat.rescue && server !== pool[pool.length - 1]) continue;
       if (tried.has(server.url + '|' + strat.name)) continue;
 
-      status(`Trying ${server.label} · ${strat.name}…`);
-      log('try', `${server.label} · ${strat.name}`);
+      status(`Trying ${server.nick} · ${strat.name}…`);
+      log('try', `${server.nick} · ${strat.name}`);
       try {
         const res = await askServer(server, strat);
-        log('ok', `${server.label} answered · ${strat.name}`);
-        if (strat.rescue) log('try', 'video was unavailable everywhere — this is the audio track');
+        log('ok', `${server.nick} delivered · ${strat.name}`);
+        if (strat.rescue) log('try', 'the video itself was unavailable — this is the sound only');
         return won(server, res, strat.rescue);
       } catch (e) {
         const msg = e.name === 'AbortError' ? 'timed out' : (e.code || e.message);
-        log('fail', `${server.label} · ${strat.name}: ${msg}`);
+        log('fail', `${server.nick} · ${strat.name}: ${friendly(msg)}`);
 
         if (AUTH_FAIL.test(msg)) { server.state = 'key'; break; }   // this server is unusable, next server
         if (RATE_FAIL.test(msg)) break;                             // don't hammer it, next server
@@ -444,14 +459,14 @@ async function resolve(url, opts) {
           // knobs won't help, but an older api version sometimes still parses it
           const legacy = plan.find((p) => p.legacy);
           if (legacy && !strat.legacy) {
-            status(`Trying ${server.label} · ${legacy.name}…`);
-            log('try', `${server.label} · ${legacy.name}`);
+            status(`Trying ${server.nick} · ${legacy.name}…`);
+            log('try', `${server.nick} · ${legacy.name}`);
             try {
               const res = await askServer(server, legacy);
-              log('ok', `${server.label} answered · ${legacy.name}`);
+              log('ok', `${server.nick} delivered · ${legacy.name}`);
               return won(server, res);
             } catch (e2) {
-              log('fail', `${server.label} · ${legacy.name}: ${e2.code || e2.message}`);
+              log('fail', `${server.nick} · ${legacy.name}: ${friendly(e2.code || e2.message)}`);
             }
           }
           break;
@@ -468,54 +483,114 @@ async function resolve(url, opts) {
 
 let current = null; // last resolved result
 
-async function download(fileUrl, filename, isAudio) {
-  el.dl.disabled = true;
+/* Long titles make unwieldy filenames — keep them short and tidy. */
+function shortName(name) {
+  const m = String(name).match(/^(.*?)(\.[a-z0-9]{2,4})?$/i);
+  let base = (m[1] || String(name)).trim();
+  const ext = m[2] || '';
+  if (base.length > 42) {
+    base = (base.slice(0, 42).replace(/[\s._,-]+\S*$/, '') || base.slice(0, 42)).trim();
+  }
+  return base + ext;
+}
+
+/* Stream into a blob with progress, save with a real filename.
+   Throws Error('empty') if the stream delivers zero bytes — never saves a dud. */
+async function downloadFile(fileUrl, filename, isAudio) {
   el.progress.hidden = false;
   el.progressFill.style.width = '0%';
   el.progressTxt.textContent = 'Starting…';
 
-  // strategy 1: stream it into a blob so the browser saves it with a real name
-  try {
-    const r = await timeoutFetch(fileUrl, {}, 600000);
-    if (!r.ok) throw new Error('http ' + r.status);
-    const total = +r.headers.get('content-length') || 0;
-    const reader = r.body.getReader();
-    const chunks = [];
-    let got = 0;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      got += value.length;
-      if (total) {
-        const pct = Math.round((got / total) * 100);
-        el.progressFill.style.width = pct + '%';
-        el.progressTxt.textContent = pct + '% · ' + mb(got) + ' / ' + mb(total);
-      } else {
-        el.progressTxt.textContent = mb(got) + ' downloaded';
-      }
+  const r = await timeoutFetch(fileUrl, {}, 600000);
+  if (!r.ok) throw new Error('http ' + r.status);
+  const total = +r.headers.get('content-length') || 0;
+  const reader = r.body.getReader();
+  const chunks = [];
+  let got = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    got += value.length;
+    if (total) {
+      const pct = Math.round((got / total) * 100);
+      el.progressFill.style.width = pct + '%';
+      el.progressTxt.textContent = pct + '% · ' + mb(got) + ' / ' + mb(total);
+    } else {
+      el.progressTxt.textContent = mb(got) + ' downloaded';
     }
-    const blob = new Blob(chunks);
-    saveBlob(blob, filename || fallbackName(isAudio));
-    el.progressFill.style.width = '100%';
-    el.progressTxt.textContent = 'Saved · ' + mb(blob.size);
-    log('ok', 'saved ' + mb(blob.size));
-  } catch (e) {
-    // strategy 2: let the browser handle it directly
-    log('fail', 'in-page save failed (' + (e.message || e.name) + ') — handing it to the browser');
-    el.progressTxt.textContent = 'Opening download…';
-    const a = document.createElement('a');
-    a.href = fileUrl;
-    a.download = filename || fallbackName(isAudio);
-    a.rel = 'noopener';
-    a.target = '_blank';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    el.progressTxt.textContent = 'Download handed to your browser';
-  } finally {
-    el.dl.disabled = false;
   }
+  if (!got) throw new Error('empty');
+  const blob = new Blob(chunks);
+  saveBlob(blob, shortName(filename || fallbackName(isAudio)));
+  el.progressFill.style.width = '100%';
+  el.progressTxt.textContent = 'Saved · ' + mb(blob.size);
+  log('ok', 'saved · ' + mb(blob.size));
+}
+
+/* Last resort: hand the link straight to the browser. */
+function browserDownload(fileUrl, filename, isAudio) {
+  log('try', 'letting your browser handle the download');
+  el.progress.hidden = false;
+  el.progressTxt.textContent = 'Download handed to your browser';
+  const a = document.createElement('a');
+  a.href = fileUrl;
+  a.download = shortName(filename || fallbackName(isAudio));
+  a.rel = 'noopener';
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+/* Download `current`; if the file comes back empty (a helper pretending to
+   deliver), quietly switch helper and try again before giving up. */
+async function grabAndSave() {
+  const opts = { quality: el.quality.value, audioOnly: el.format.value === 'audio' };
+  const duds = new Set();
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await downloadFile(current.url, current.filename, current.audioOnly);
+      status('Saved', 'done');
+      return;
+    } catch (e) {
+      const msg = (e && e.message) || '';
+      const recoverable = msg === 'empty' || msg.startsWith('http ');
+      if (!recoverable) {                       // blocked in-page (e.g. CORS) — browser can still do it
+        browserDownload(current.url, current.filename, current.audioOnly);
+        return;
+      }
+      log('fail', 'the file came back empty — switching helper');
+      if (!current.serverUrl) break;            // direct link: nothing to switch to
+      duds.add(current.serverUrl);
+      status('That copy was empty — trying another helper…');
+      try {
+        current = await resolve(el.url.value.trim(), opts, duds);
+      } catch { break; }
+    }
+  }
+
+  status("Couldn't get a working copy", 'fail');
+  el.progress.hidden = true;
+  showError(
+    '<b>The video came back empty every time.</b>' +
+    '<p>This one seems blocked for the free helpers right now. It usually clears up — try again in a few minutes.</p>' +
+    '<p><button id="retryBtn" class="ghost" type="button">Try again</button></p>'
+  );
+  const rb = $('retryBtn');
+  if (rb) rb.onclick = () => run(el.url.value.trim());
+}
+
+/* Picker items download directly; an empty one just reports, never saves. */
+function pickerSave(fileUrl, filename, isAudio) {
+  downloadFile(fileUrl, filename, isAudio).catch((e) => {
+    if ((e && e.message) === 'empty') {
+      el.progressTxt.textContent = 'That one was empty — try another item';
+    } else {
+      browserDownload(fileUrl, filename, isAudio);
+    }
+  });
 }
 
 const mb = (b) => (b / 1048576).toFixed(1) + ' MB';
@@ -563,7 +638,7 @@ async function run(rawUrl) {
 
   loadPreview(url); // fire and forget
 
-  const opts = { quality: el.quality.value, audioOnly: el.audioOnly.checked };
+  const opts = { quality: el.quality.value, audioOnly: el.format.value === 'audio' };
 
   try {
     await serversReady;               // a ?url= link can land before the list is ready
@@ -668,7 +743,7 @@ function renderPicker(res) {
     const s = document.createElement('span');
     s.textContent = (item.type || 'file') + ' ' + (i + 1);
     b.appendChild(s);
-    b.onclick = () => download(item.url, `ashgrab-${i + 1}.${item.type === 'photo' ? 'jpg' : 'mp4'}`, false);
+    b.onclick = () => pickerSave(item.url, `ashgrab-${i + 1}.${item.type === 'photo' ? 'jpg' : 'mp4'}`, false);
     el.pickerGrid.appendChild(b);
   });
   if (res.audio) {
@@ -676,7 +751,7 @@ function renderPicker(res) {
     b.className = 'pick';
     b.type = 'button';
     b.innerHTML = NOTE_SVG + '<span>audio track</span>';
-    b.onclick = () => download(res.audio, 'ashgrab-audio.mp3', true);
+    b.onclick = () => pickerSave(res.audio, 'ashgrab-audio.mp3', true);
     el.pickerGrid.appendChild(b);
   }
 }
@@ -730,12 +805,14 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-el.dl.addEventListener('click', () => {
-  if (current) download(current.url, current.filename, current.audioOnly);
+el.dl.addEventListener('click', async () => {
+  if (!current) return;
+  el.dl.disabled = true;
+  try { await grabAndSave(); } finally { el.dl.disabled = false; }
 });
 
 // changing quality / format invalidates the resolved link
-[el.quality, el.audioOnly].forEach((n) =>
+[el.quality, el.format].forEach((n) =>
   n.addEventListener('change', () => {
     if (el.url.value.trim() && current) run(el.url.value.trim());
   })

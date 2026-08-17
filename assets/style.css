@@ -30,7 +30,7 @@ body{
   color:var(--txt);
   font:16px/1.55 "Nunito",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   -webkit-font-smoothing:antialiased;
-  padding:28px 16px calc(28px + env(safe-area-inset-bottom));
+  padding:calc(28px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom));
   overflow-x:hidden;
 }
 a{color:var(--blue);text-decoration:none}
@@ -126,13 +126,13 @@ button{font:inherit;cursor:pointer}
 }
 @keyframes rise{from{opacity:0;transform:translateY(12px)}}
 .thumb{
-  width:150px;flex:0 0 150px;aspect-ratio:16/10;border-radius:13px;overflow:hidden;
+  width:118px;flex:0 0 118px;aspect-ratio:16/11;border-radius:12px;overflow:hidden;
   background:var(--blue-soft);
   display:grid;place-items:center;color:#9db4e8;
-  font-family:"Fredoka",sans-serif;font-size:30px;font-weight:600;
+  font-family:"Fredoka",sans-serif;font-size:24px;font-weight:600;
 }
 .thumb img,.thumb video{width:100%;height:100%;object-fit:cover;display:block}
-.thumb .note{width:36px;height:36px;color:#9db4e8}
+.thumb .note{width:26px;height:26px;color:#9db4e8}
 .meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:9px}
 .title{
   font-size:15.5px;font-weight:800;line-height:1.35;
@@ -301,8 +301,7 @@ select{
   .bar{flex-wrap:wrap;border-radius:24px}
   #url{flex:1 0 100%;padding:9px 6px}
   .ghost,.go{flex:1;text-align:center}
-  .card{flex-direction:column}
-  .thumb{width:100%;flex:none;aspect-ratio:16/9}
+  .thumb{width:104px;flex:0 0 104px}
   .logo h1{font-size:25px}
 }
 
