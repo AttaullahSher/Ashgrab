@@ -1080,33 +1080,21 @@ function renderShortcut() {
 initSegment($('scModeSeg'), (value) => { shortcut.mode = value; renderShortcut(); });
 renderShortcut();
 
-/* iOS only imports shortcuts Apple's tooling has signed. Two routes provide
-   one: the sign-shortcut workflow signs assets/Ashgrab.shortcut on a macOS
-   runner (checked for below), or a shortcut shared to iCloud from a real
-   iPhone can be pasted here and takes precedence. The guided build stays as
-   the fallback for the day neither exists. */
+/* iOS only imports shortcuts Apple has signed, and every signing route runs
+   through an Apple account: `shortcuts sign` refuses on a Mac that isn't
+   signed into iCloud (verified on a CI runner — "you must be signed into
+   iCloud"), so a repo cannot sign its own shortcut. The one sanctioned path
+   is the one every shortcut-sharing site uses: build it once on a real
+   iPhone, share it to iCloud — Apple signs it at that moment — and publish
+   the resulting icloud.com/shortcuts link here. Until then the guided build
+   below carries it. */
 const ICLOUD_SHORTCUT = '';
 
-(async function enableInstantInstall() {
-  const show = (href) => {
-    $('scInstant').href = href;
-    $('scInstantWrap').hidden = false;
-    $('scBuildHead').textContent = 'iPhone — or build it yourself';
-  };
-
-  if (ICLOUD_SHORTCUT) { show(ICLOUD_SHORTCUT); return; }
-
-  try {
-    const r = await fetch('assets/Ashgrab.shortcut', { method: 'HEAD', cache: 'no-cache' });
-    if (!r.ok) return; // not signed and published yet — the guide carries it
-    const fileUrl = new URL('assets/Ashgrab.shortcut', location.href).href;
-    // hand the file straight to the Shortcuts app; the plain link is the backup
-    show('shortcuts://import-shortcut/?' + new URLSearchParams({ url: fileUrl, name: 'Ashgrab' }));
-    const alt = $('scInstantAlt');
-    alt.href = fileUrl;
-    alt.hidden = false;
-  } catch { /* offline — the guide still works */ }
-})();
+if (ICLOUD_SHORTCUT) {
+  $('scInstant').href = ICLOUD_SHORTCUT;
+  $('scInstantWrap').hidden = false;
+  $('scBuildHead').textContent = 'iPhone — or build it yourself';
+}
 
 /* Android and desktop can install the app properly; the browser tells us when. */
 let installPrompt = null;
