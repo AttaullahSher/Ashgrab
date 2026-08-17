@@ -25,8 +25,8 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4.2-4.2M12 14 7.8 9.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16.5V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2.5" stroke-linecap="round"/></svg>
       <h1>Ashgrab</h1>
     </div>
-    <button id="settingsBtn" class="icon-btn" title="Settings" aria-label="Settings">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-3-1.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9h-.2a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.2 6.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2v-.2a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 3 1.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    <button id="shortcutBtn" class="icon-btn" title="Use from any app" aria-label="Use from any app">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="13" height="13" rx="4"/><rect x="8" y="8" width="13" height="13" rx="4"/></svg>
     </button>
   </header>
 
@@ -90,10 +90,50 @@
       <a href="#" data-info="info-how">How it works</a>
       <a href="#" data-info="info-privacy">Privacy</a>
       <a href="#" data-info="info-fair">Fair use</a>
+      <a href="#" id="settingsBtn">Settings</a>
     </nav>
     <p class="fine">Free · Made by Asher</p>
   </footer>
 </main>
+
+<!-- shortcut helper screen -->
+<div id="shortcutSheet" class="sheet" hidden>
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <h2>Use Ashgrab from any app</h2>
+      <button id="closeShortcut" class="icon-btn" aria-label="Close">✕</button>
+    </div>
+
+    <section class="info-section">
+      <h3>iPhone — add it to your Share menu</h3>
+      <p>One-time setup with Apple's <b>Shortcuts</b> app (already on your iPhone):</p>
+      <ol class="steps">
+        <li>Open <b>Shortcuts</b> and tap <b>+</b> to make a new shortcut.</li>
+        <li>Tap the <b>ⓘ</b> at the bottom and switch on <b>Show in Share Sheet</b>.</li>
+        <li>Add the action <b>Open URLs</b>. Tap its web address field, paste the link below,
+            then — right after it — pick <b>Shortcut Input</b> from the blue suggestions.</li>
+        <li>Name it <b>Ashgrab</b> and tap <b>Done</b>.</li>
+      </ol>
+      <div class="copy-row">
+        <code id="shortcutTemplate">…</code>
+        <button id="copyTemplate" class="go sm" type="button">Copy</button>
+      </div>
+      <p>From then on: watching a video anywhere → tap <b>Share</b> → <b>Ashgrab</b>. Done.</p>
+    </section>
+
+    <section class="info-section">
+      <h3>iPhone — app icon</h3>
+      <p>In Safari, tap <b>Share</b> → <b>Add to Home Screen</b>. Ashgrab gets its own icon
+         and opens like a normal app.</p>
+    </section>
+
+    <section class="info-section">
+      <h3>Android — even easier</h3>
+      <p>Open Ashgrab in Chrome → menu → <b>Add to Home screen</b>. It then shows up in your
+         Share menu automatically — no setup needed.</p>
+    </section>
+  </div>
+</div>
 
 <!-- info screen -->
 <div id="infoSheet" class="sheet" hidden>
