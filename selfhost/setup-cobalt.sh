@@ -6,24 +6,36 @@
 # written for Ubuntu 22.04/24.04 on any small VPS — including an Oracle Cloud
 # Always Free ARM instance — and takes a few minutes.
 #
-# Before running:
-#   1. Have a domain or subdomain (e.g. dl.example.com) with an A record
-#      pointing at this server's public IP.
-#   2. Open TCP 80 and 443 in your cloud firewall (on Oracle: the VCN security
-#      list AND the instance's own iptables — insert ACCEPT rules ABOVE the
-#      REJECT lines, presence alone is not enough).
+# Before running: open TCP 80 and 443 in your cloud firewall (on Oracle,
+# that's an ingress rule in the VCN security list; this script handles the
+# instance's own iptables by itself).
 #
-# Run:
+# Run — no arguments needed:
+#   sudo bash setup-cobalt.sh
+# It uses <your-ip>.sslip.io, a free name that always points at this server,
+# so there is no DNS to configure. Prefer your own domain? Point an A record
+# at the server first, then:
 #   sudo bash setup-cobalt.sh dl.example.com you@example.com
 #
-# Afterwards: open Ashgrab -> Settings -> "Your own server" and paste
-# https://dl.example.com/ - done. It is pinned first and tried before any
-# public helper, forever.
+# Afterwards: open Ashgrab -> Settings -> "Your own server" and paste the
+# address the script prints at the end - done. It is pinned first and tried
+# before any public helper, forever.
 
 set -euo pipefail
 
-DOMAIN="${1:?usage: sudo bash setup-cobalt.sh <domain> <email-for-https-certificates>}"
-EMAIL="${2:?usage: sudo bash setup-cobalt.sh <domain> <email-for-https-certificates>}"
+# Both arguments are OPTIONAL.
+#   No arguments  -> uses <your-ip>.sslip.io, a free name that always points
+#                    at this server, so no DNS setup is needed at all.
+#   With a domain -> sudo bash setup-cobalt.sh dl.example.com you@example.com
+DOMAIN="${1:-}"
+EMAIL="${2:-}"
+
+if [ -z "$DOMAIN" ]; then
+  PUB_IP=$(curl -fsS https://api.ipify.org || curl -fsS https://ifconfig.me)
+  [ -n "$PUB_IP" ] || { echo "could not detect the public IP — pass a domain instead" >&2; exit 1; }
+  DOMAIN="${PUB_IP}.sslip.io"
+  echo "==> No domain given — using ${DOMAIN} (no DNS setup needed)"
+fi
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "run me with sudo" >&2
@@ -87,15 +99,15 @@ COMPOSE
 docker compose -f /opt/cobalt/docker-compose.yml up -d
 
 echo "==> Pointing Caddy at it"
-cat > /etc/caddy/Caddyfile <<CADDY
 {
-	email ${EMAIL}
-}
-
-${DOMAIN} {
-	reverse_proxy 127.0.0.1:9000
-}
-CADDY
+  echo "{"
+  if [ -n "$EMAIL" ]; then echo "	email ${EMAIL}"; fi
+  echo "}"
+  echo ""
+  echo "${DOMAIN} {"
+  echo "	reverse_proxy 127.0.0.1:9000"
+  echo "}"
+} > /etc/caddy/Caddyfile
 systemctl restart caddy
 
 echo "==> Waiting for the certificate and a healthy reply"
