@@ -187,7 +187,7 @@ svg.defs { position: absolute; width: 0; height: 0; }
 
 .bar {
   display: flex; align-items: center; gap: 8px;
-  background: var(--fill); border-radius: 18px; padding: 6px 6px 6px 15px;
+  background: var(--fill); border-radius: 18px; padding: 6px 6px 6px 18px;
   border: 1.5px solid transparent;
   transition: border-color .22s var(--ease), background .22s var(--ease), box-shadow .22s var(--ease);
 }
@@ -199,6 +199,8 @@ svg.defs { position: absolute; width: 0; height: 0; }
   padding: 13px 0; font-size: 17px; letter-spacing: -0.01em;
 }
 .bar input::placeholder { color: var(--label-3); }
+/* the bar already draws the focus ring — the field must not draw a second */
+.bar input:focus-visible { box-shadow: none; }
 
 .ghost {
   flex: none; height: 40px; padding: 0 15px; border-radius: 14px;
@@ -350,14 +352,11 @@ svg.defs { position: absolute; width: 0; height: 0; }
 
 /* ------------------------------------------------------------------ status */
 
-.status { margin-top: 16px; }
-.log-toggle {
-  width: 100%; display: flex; align-items: center; gap: 10px;
-  padding: 11px 14px; border-radius: var(--r-md); background: var(--fill);
-  font-size: 14.5px; color: var(--label); text-align: left;
+.status {
+  margin-top: 16px; display: flex; align-items: center; gap: 10px;
+  padding: 12px 15px; border-radius: var(--r-md); background: var(--fill);
+  font-size: 15px; color: var(--label);
 }
-.log-toggle .chev { margin-left: auto; color: var(--label-3); transition: transform .3s var(--ease); }
-.log-toggle[aria-expanded="true"] .chev { transform: rotate(180deg); }
 
 .spinner {
   width: 16px; height: 16px; flex: none; border-radius: 50%;
@@ -375,18 +374,6 @@ svg.defs { position: absolute; width: 0; height: 0; }
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23000' stroke-width='3.2' stroke-linecap='round' d='M6 6l12 12M18 6 6 18'/%3E%3C/svg%3E") center/contain no-repeat;
           mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23000' stroke-width='3.2' stroke-linecap='round' d='M6 6l12 12M18 6 6 18'/%3E%3C/svg%3E") center/contain no-repeat;
 }
-
-.log {
-  margin: 8px 0 0; padding: 10px 12px; list-style: none;
-  max-height: 220px; overflow-y: auto;
-  background: var(--fill); border-radius: var(--r-md);
-  font-size: 13px; font-family: var(--mono); color: var(--label-2);
-}
-.log li { display: flex; gap: 8px; padding: 3px 0; align-items: flex-start; }
-.log li b { flex: none; width: 14px; text-align: center; font-weight: 700; }
-.log li.ok b { color: var(--green); }
-.log li.fail b { color: var(--red); }
-.log li.try b { color: var(--label-3); }
 
 /* ------------------------------------------------------------------- error */
 
