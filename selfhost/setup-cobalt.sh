@@ -30,6 +30,28 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
+# --- Oracle instances from the owner's VPN project: SSH also listens on 443 -
+# Caddy needs that port. Remove the alt-port drop-ins (port 22 SSH keeps
+# working; make sure THIS session is on port 22 before continuing).
+if [ -f /etc/systemd/system/ssh.socket.d/99-alt-port.conf ] || [ -f /etc/ssh/sshd_config.d/99-alt-port.conf ]; then
+  echo "==> Freeing port 443 (it is currently a spare SSH port)"
+  echo "    Your normal port-22 SSH is untouched."
+  rm -f /etc/systemd/system/ssh.socket.d/99-alt-port.conf
+  rm -f /etc/ssh/sshd_config.d/99-alt-port.conf
+  systemctl daemon-reload
+  systemctl restart ssh.socket 2>/dev/null || true
+  systemctl restart ssh 2>/dev/null || true
+fi
+
+# --- Oracle's Ubuntu image ends its firewall in a blanket REJECT, so web
+# ports must be ACCEPTed at the TOP of the chain; appending is not enough.
+echo "==> Opening ports 80 and 443 in the instance firewall"
+for p in 80 443; do
+  iptables -C INPUT -p tcp --dport "$p" -m conntrack --ctstate NEW -j ACCEPT 2>/dev/null \
+    || iptables -I INPUT 1 -p tcp --dport "$p" -m conntrack --ctstate NEW -j ACCEPT
+done
+netfilter-persistent save 2>/dev/null || true
+
 echo "==> Installing Docker"
 apt-get update -y
 apt-get install -y docker.io docker-compose-v2 curl gnupg
@@ -45,6 +67,10 @@ apt-get install -y caddy
 
 echo "==> Starting cobalt"
 mkdir -p /opt/cobalt
+# If YouTube ever challenges even this server, export your YouTube cookies
+# (any "cookies.txt" browser extension, Netscape format) to
+# /opt/cobalt/cookies.json following cobalt's docs, then uncomment the two
+# marked lines below and run:  docker compose -f /opt/cobalt/docker-compose.yml up -d
 cat > /opt/cobalt/docker-compose.yml <<COMPOSE
 services:
   cobalt:
@@ -54,6 +80,9 @@ services:
       - "127.0.0.1:9000:9000"
     environment:
       API_URL: "https://${DOMAIN}/"
+      # COOKIE_PATH: "/cookies.json"            # <- uncomment for YouTube cookies
+    # volumes:
+    #   - /opt/cobalt/cookies.json:/cookies.json  # <- uncomment for YouTube cookies
 COMPOSE
 docker compose -f /opt/cobalt/docker-compose.yml up -d
 
