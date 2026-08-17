@@ -85,14 +85,9 @@
   </section>
 
   <form id="form" class="bar" autocomplete="off">
-    <svg class="bar-glyph" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
-      <path d="M10 13.5a4 4 0 0 0 5.7.3l3-3a4 4 0 0 0-5.7-5.7l-1.2 1.2"/>
-      <path d="M14 10.5a4 4 0 0 0-5.7-.3l-3 3a4 4 0 0 0 5.7 5.7l1.2-1.2"/>
-    </svg>
     <label class="sr-only" for="url">Video link</label>
     <input id="url" type="url" inputmode="url" placeholder="Paste video link…" spellcheck="false" enterkeyhint="go" required>
     <button type="button" id="pasteBtn" class="ghost" title="Paste from clipboard">Paste</button>
-    <button type="submit" id="goBtn" class="go">Get</button>
   </form>
 
   <!-- format + quality: the selects stay as the source of truth for the
@@ -163,14 +158,10 @@
   </section>
 
   <!-- status -->
-  <section id="statusBox" class="status" hidden>
-    <button type="button" id="logToggle" class="log-toggle" aria-expanded="false">
-      <span class="spinner" id="spinner"></span>
-      <span id="statusMsg">Working…</span>
-      <span class="chev">▾</span>
-    </button>
-    <ol id="log" class="log" hidden></ol>
-  </section>
+  <div id="statusBox" class="status" hidden>
+    <span class="spinner" id="spinner"></span>
+    <span id="statusMsg">Working…</span>
+  </div>
 
   <div id="error" class="error" hidden></div>
 

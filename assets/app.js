@@ -27,14 +27,14 @@ let serversReady;
 
 const $ = (id) => document.getElementById(id);
 const el = {
-  form: $('form'), url: $('url'), paste: $('pasteBtn'), go: $('goBtn'),
+  form: $('form'), url: $('url'), paste: $('pasteBtn'),
   card: $('card'), thumb: $('thumb'), title: $('title'), source: $('source'),
   fileinfo: $('fileinfo'), quality: $('quality'), format: $('format'),
   dl: $('dlBtn'), progress: $('progress'), progressFill: $('progressFill'),
   progressTxt: $('progressTxt'),
   picker: $('picker'), pickerGrid: $('pickerGrid'), recent: $('recent'),
   statusBox: $('statusBox'), statusMsg: $('statusMsg'), spinner: $('spinner'),
-  logToggle: $('logToggle'), log: $('log'), error: $('error'),
+  error: $('error'),
   sheet: $('sheet'), settingsBtn: $('settingsBtn'), closeSheet: $('closeSheet'),
   customInstance: $('customInstance'), apiKey: $('apiKey'),
   alwaysProxy: $('alwaysProxy'), serverList: $('serverList'), recheck: $('recheck'),
@@ -51,14 +51,9 @@ function timeoutFetch(url, opts = {}, ms = 20000) {
 
 const normalize = (u) => (u.endsWith('/') ? u : u + '/');
 
-function log(kind, msg) {
-  const li = document.createElement('li');
-  li.className = kind; // try | ok | fail
-  li.innerHTML = `<b>${kind === 'ok' ? '✓' : kind === 'fail' ? '✗' : '→'}</b><span></span>`;
-  li.lastChild.textContent = msg;
-  el.log.appendChild(li);
-  el.log.scrollTop = el.log.scrollHeight;
-}
+/* The engine narrates every route it tries. That is for debugging, not for
+   people, so it goes nowhere — kept as a no-op so the calls stay valid. */
+function log() {}
 
 function status(msg, state) {
   el.statusBox.hidden = false;
@@ -67,6 +62,7 @@ function status(msg, state) {
 }
 
 function showError(html) {
+  el.statusBox.hidden = true;
   el.error.hidden = false;
   el.error.innerHTML = html;
 }
@@ -76,9 +72,6 @@ function clearAll() {
   el.card.hidden = true;
   el.picker.hidden = true;
   el.pickerGrid.innerHTML = '';
-  el.log.innerHTML = '';
-  el.log.hidden = true;
-  el.logToggle.setAttribute('aria-expanded', 'false');
   el.progress.hidden = true;
   el.progressFill.style.width = '0%';
   el.dl.disabled = true;
@@ -419,7 +412,7 @@ async function resolve(url, opts, dudServers = new Set()) {
   const racers = pool.filter((s) => s.state === 'up').slice(0, 2);
   if (racers.length === 2) {
     const strat = plan[0];
-    status('Finding the fastest helper…');
+    status('Finding your video…');
     log('try', `racing ${racers[0].nick} vs ${racers[1].nick} · ${strat.name}`);
     try {
       const win = await Promise.any(racers.map((s) =>
@@ -446,7 +439,7 @@ async function resolve(url, opts, dudServers = new Set()) {
       if (strat.rescue && server !== pool[pool.length - 1]) continue;
       if (tried.has(server.url + '|' + strat.name)) continue;
 
-      status(`Trying ${server.nick} · ${strat.name}…`);
+      status('Still looking…');
       log('try', `${server.nick} · ${strat.name}`);
       try {
         const res = await askServer(server, strat);
@@ -570,7 +563,7 @@ async function grabAndSave() {
       log('fail', 'the file came back empty — switching helper');
       if (!current.serverUrl) break;            // direct link: nothing to switch to
       duds.add(current.serverUrl);
-      status('That copy was empty — trying another helper…');
+      status('Trying another way…');
       // second empty in a row: the quality itself is probably the blocked
       // path, so step down a notch as well as switching to the relay
       if (attempt >= 1 && !opts.audioOnly && LOWER[opts.quality]) {
@@ -587,16 +580,9 @@ async function grabAndSave() {
   el.progress.hidden = true;
   const isYT = platformOf(el.url.value.trim()) === 'youtube';
   showError(
-    '<b>The video came back empty every time.</b>' +
-    (isYT
-      ? '<p>YouTube is blocking the free helper for this particular video — it accepts the ' +
-        'request, then sends nothing back, on every route. Lower quality was already tried ' +
-        'automatically; it can\'t fix this kind of block.</p>' +
-        '<ul><li>Blocks come and go — the same link often works an hour or two later</li>' +
-        '<li>Older or less-viral videos usually still work right now</li>' +
-        '<li>The real fix: your own helper server, which YouTube treats far better. ' +
-        'See <b>Settings → Run your own</b> — it\'s one command.</li></ul>'
-      : '<p>This one seems blocked for the free helpers right now. It usually clears up — try again in a few minutes.</p>') +
+    '<b>Can\'t download this one.</b>' +
+    (isYT ? '<p>YouTube is blocking it right now. The same link often works later.</p>'
+          : '<p>Try again in a few minutes.</p>') +
     '<p><button id="retryBtn" class="ghost" type="button">Try again</button></p>'
   );
   const rb = $('retryBtn');
@@ -633,13 +619,12 @@ async function run(rawUrl) {
   const url = cleanUrl(extractUrl(rawUrl) || rawUrl);
   el.url.value = url;
   clearAll();
-  el.go.disabled = true;
   el.card.hidden = false;
   el.title.textContent = 'Looking it up…';
   el.source.textContent = platformOf(url);
   el.fileinfo.textContent = '';
   el.thumb.textContent = platformOf(url).slice(0, 1).toUpperCase();
-  status('Working…');
+  status('Finding your video…');
 
   // link already points at a file — no extraction needed
   const direct = directFile(url);
@@ -652,7 +637,6 @@ async function run(rawUrl) {
     el.dl.disabled = false;
     el.dl.textContent = direct.audioOnly ? 'Download audio' : 'Download';
     status('Ready', 'done');
-    el.go.disabled = false;
     remember(url, direct.filename);
     return;
   }
@@ -688,14 +672,9 @@ async function run(rawUrl) {
   } catch (e) {
     status("Couldn't get that one", 'fail');
     el.card.hidden = true;
-    el.logToggle.setAttribute('aria-expanded', 'true');
-    el.log.hidden = false;
     showError(
-      '<b>That one didn\'t work — sorry.</b>' +
-      '<ul>' +
-      '<li>Make sure the link opens normally in your browser. Private or deleted posts can\'t be saved.</li>' +
-      '<li>The free helpers get busy sometimes. Wait a minute and try again — it usually works.</li>' +
-      '</ul>' +
+      '<b>Can\'t download this one.</b>' +
+      '<p>Check the link opens normally — private and deleted posts can\'t be saved.</p>' +
       '<p><button id="retryBtn" class="ghost" type="button">Try again</button></p>'
     );
     const rb = $('retryBtn');
@@ -704,8 +683,6 @@ async function run(rawUrl) {
       probeAll();
       run(url);
     };
-  } finally {
-    el.go.disabled = false;
   }
 }
 
@@ -786,6 +763,22 @@ el.form.addEventListener('submit', (e) => {
   run(u);
 });
 
+/* There is no "go" button: a link in the box is the instruction. Wait for
+   typing to settle so a half-typed address never starts a lookup. */
+let autoTimer = null;
+let autoLast = '';
+el.url.addEventListener('input', () => {
+  clearTimeout(autoTimer);
+  const v = el.url.value.trim();
+  if (v === autoLast) return;
+  if (!/^https?:\/\/[^\s.]+\.[^\s]{2,}/i.test(v)) return;
+  autoTimer = setTimeout(() => {
+    if (el.url.value.trim() !== v) return;
+    autoLast = v;
+    run(v);
+  }, 650);
+});
+
 el.paste.addEventListener('click', async () => {
   try {
     const t = (await navigator.clipboard.readText()).trim();
@@ -838,12 +831,6 @@ el.dl.addEventListener('click', async () => {
     if (el.url.value.trim() && current) run(el.url.value.trim());
   })
 );
-
-el.logToggle.addEventListener('click', () => {
-  const open = el.logToggle.getAttribute('aria-expanded') === 'true';
-  el.logToggle.setAttribute('aria-expanded', String(!open));
-  el.log.hidden = open;
-});
 
 /* settings sheet */
 const infoSheet = $('infoSheet');
