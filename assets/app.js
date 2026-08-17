@@ -845,6 +845,30 @@ $('selfhostLink').addEventListener('click', (e) => {
 el.closeSheet.addEventListener('click', closeSheet);
 el.sheet.addEventListener('click', (e) => { if (e.target === el.sheet) closeSheet(); });
 
+/* shortcut helper screen */
+const shortcutSheet = $('shortcutSheet');
+const shareBase = new URL('.', location.href).href + '?url=';
+$('shortcutTemplate').textContent = shareBase;
+$('shortcutBtn').addEventListener('click', () => { shortcutSheet.hidden = false; });
+$('closeShortcut').addEventListener('click', () => { shortcutSheet.hidden = true; });
+shortcutSheet.addEventListener('click', (e) => { if (e.target === shortcutSheet) shortcutSheet.hidden = true; });
+$('copyTemplate').addEventListener('click', async () => {
+  const btn = $('copyTemplate');
+  try {
+    await navigator.clipboard.writeText(shareBase);
+    btn.textContent = 'Copied ✓';
+  } catch {
+    // clipboard blocked: select the text so a long-press copy works
+    const range = document.createRange();
+    range.selectNodeContents($('shortcutTemplate'));
+    const sel = getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    btn.textContent = 'Hold to copy';
+  }
+  setTimeout(() => (btn.textContent = 'Copy'), 2500);
+});
+
 /* info screen — footer links open it at the matching section */
 document.querySelectorAll('[data-info]').forEach((a) =>
   a.addEventListener('click', (e) => {
@@ -858,7 +882,7 @@ $('closeInfo').addEventListener('click', () => { infoSheet.hidden = true; });
 infoSheet.addEventListener('click', (e) => { if (e.target === infoSheet) infoSheet.hidden = true; });
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { closeSheet(); infoSheet.hidden = true; }
+  if (e.key === 'Escape') { closeSheet(); infoSheet.hidden = true; shortcutSheet.hidden = true; }
 });
 
 el.customInstance.addEventListener('change', () => {
