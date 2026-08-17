@@ -32,6 +32,13 @@ them and dispatch `change`; never bypass them.
 - YouTube blocks most public Cobalt instances' addresses: resolves succeed but
   the stream is empty. The relay route (`alwaysProxy`) rescues some; the real
   fix is a self-hosted instance.
+- YouTube also blocks **per-video**: verified 2026-08-17 with youtu.be/4IfRgovQGtk
+  against the one live helper — tunnel accepted, zero bytes on every route
+  (all qualities, direct, relay, even audio-only), while an older video
+  delivered fine through the same helper minutes earlier. No client-side
+  retry ladder can fix that class of block; do not try. If a self-hosted
+  instance still hits it, cobalt supports feeding it YouTube cookies/session
+  tokens — that is the lever, server-side.
 - `assets/servers.json` is rewritten weekly by `update-servers.yml` — keep
   pinned entries in `scripts/update-servers.mjs`, not in the JSON.
 - Bump the `sw.js` cache name whenever the shell files change, or returning
