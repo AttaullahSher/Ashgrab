@@ -23,12 +23,11 @@
   --thumb-shadow: 0 3px 8px rgba(0,0,0,.12), 0 1px 1px rgba(0,0,0,.04);
 
   --blue: #007aff;
-  --pink: #ff2d92;
   --green: #34c759;
   --red: #ff3b30;
   --orange: #ff9500;
 
-  --grad: linear-gradient(135deg, #ff2d92 0%, #c644d8 32%, #7a5af8 62%, #0a84ff 84%, #32ade6 100%);
+  --grad: linear-gradient(135deg, #3d9cff 0%, #0a84ff 55%, #0066e0 100%);
 
   --r-xl: 28px;
   --r-lg: 22px;
@@ -132,11 +131,11 @@ svg.defs { position: absolute; width: 0; height: 0; }
 .ambient span { position: absolute; border-radius: 50%; filter: blur(80px); opacity: .5;
   animation: drift 24s var(--ease) infinite alternate; }
 .ambient span:nth-child(1) { width: 46vmax; height: 46vmax; top: -16vmax; left: -10vmax;
-  background: radial-gradient(circle, rgba(255,45,146,.5), transparent 68%); }
+  background: radial-gradient(circle, rgba(10,132,255,.22), transparent 68%); }
 .ambient span:nth-child(2) { width: 42vmax; height: 42vmax; top: -8vmax; right: -12vmax;
-  background: radial-gradient(circle, rgba(10,132,255,.45), transparent 68%); animation-delay: -8s; }
+  background: radial-gradient(circle, rgba(50,173,230,.18), transparent 68%); animation-delay: -8s; }
 .ambient span:nth-child(3) { width: 38vmax; height: 38vmax; top: 36vmax; left: 28vw;
-  background: radial-gradient(circle, rgba(122,90,248,.38), transparent 68%); animation-delay: -15s; }
+  background: radial-gradient(circle, rgba(120,144,180,.14), transparent 68%); animation-delay: -15s; }
 @media (prefers-color-scheme: dark) { .ambient span { opacity: .3; } }
 @keyframes drift {
   from { transform: translate3d(0,0,0) scale(1); }
@@ -167,7 +166,7 @@ svg.defs { position: absolute; width: 0; height: 0; }
   border-radius: 10px;
   background: var(--grad);
   color: #fff;
-  box-shadow: 0 3px 10px rgba(122,90,248,.34);
+  box-shadow: 0 3px 10px rgba(10,102,224,.34);
 }
 .icon-btn.sc-btn:hover { background: var(--grad); color: #fff; filter: brightness(1.07); }
 .icon-btn.sc-btn svg { width: 20px; height: 20px; }
@@ -177,7 +176,7 @@ svg.defs { position: absolute; width: 0; height: 0; }
 .hero { text-align: center; padding: 18px 0 22px; }
 .hero .mark-lg {
   width: 92px; height: 92px; margin: 0 auto 16px; border-radius: 23px;
-  box-shadow: 0 10px 30px rgba(122,90,248,.3), 0 2px 6px rgba(0,0,0,.12);
+  box-shadow: 0 10px 30px rgba(10,102,224,.3), 0 2px 6px rgba(0,0,0,.12);
   animation: pop .7s var(--spring) both;
 }
 @keyframes pop { from { transform: scale(.72); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -215,7 +214,7 @@ svg.defs { position: absolute; width: 0; height: 0; }
 .go {
   flex: none; height: 40px; padding: 0 20px; border-radius: 14px;
   background: var(--grad); color: #fff; font-size: 16px; font-weight: 600;
-  box-shadow: 0 4px 14px rgba(122,90,248,.32);
+  box-shadow: 0 4px 14px rgba(10,102,224,.32);
   transition: transform .22s var(--spring), filter .2s, opacity .2s;
 }
 .go:active { transform: scale(.95); filter: brightness(.94); }
@@ -260,7 +259,7 @@ svg.defs { position: absolute; width: 0; height: 0; }
 .chips .chip:active { transform: scale(.93); }
 .chips .chip[aria-pressed="true"] {
   background: var(--grad); color: #fff; font-weight: 600;
-  box-shadow: 0 4px 14px rgba(122,90,248,.32);
+  box-shadow: 0 4px 14px rgba(10,102,224,.32);
 }
 
 /* ------------------------------------------------------------------ recent */
@@ -313,7 +312,7 @@ svg.defs { position: absolute; width: 0; height: 0; }
   width: 100%; margin-top: 14px; height: 52px; border-radius: 17px;
   background: var(--grad); color: #fff; font-size: 17px; font-weight: 600;
   display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-  box-shadow: 0 5px 18px rgba(122,90,248,.34);
+  box-shadow: 0 5px 18px rgba(10,102,224,.34);
   transition: transform .22s var(--spring), filter .2s, opacity .2s;
 }
 .dl svg { width: 18px; height: 18px; }
@@ -416,7 +415,7 @@ svg.defs { position: absolute; width: 0; height: 0; }
 .promo-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
 .promo-badge {
   width: 50px; height: 50px; flex: none; border-radius: 14px; display: grid; place-items: center;
-  background: var(--grad); color: #fff; box-shadow: 0 6px 18px rgba(122,90,248,.3);
+  background: var(--grad); color: #fff; box-shadow: 0 6px 18px rgba(10,102,224,.3);
 }
 .promo-badge svg { width: 25px; height: 25px; }
 .promo-head h3 { font-size: 20px; font-weight: 700; letter-spacing: -0.022em; }
